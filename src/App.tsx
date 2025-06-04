@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, Plus, Trash2, Save, Volume2, RotateCcw, TrendingUp } from 'lucide-react';
+import { Play, Pause, Plus, Trash2, Save, Volume2, RotateCcw, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // 型定義
 interface Pattern {
@@ -541,9 +541,9 @@ const PolyrhythmMetronome = () => {
           <div className="space-y-4">
             {patterns.map((pattern, index) => (
               <div key={pattern.id} className="bg-gray-700 p-4 rounded">
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                   <div>
-                    <label className="text-sm text-gray-400">拍子</label>
+                    <label className="text-sm text-gray-400 block mb-2">拍子</label>
                     <div className="flex items-center space-x-1">
                       <input
                         type="number"
@@ -570,34 +570,88 @@ const PolyrhythmMetronome = () => {
                     </div>
                   </div>
                   
-                  <div>
-                    <label className="text-sm text-gray-400">BPM (4分音符基準)</label>
+                  <div className="space-y-2">
+                    <label className="text-sm text-gray-400 block">BPM (4分音符基準)</label>
+                    {/* 矢印ボタンと数値入力 */}
+                    <div className="flex items-center space-x-1">
+                      <button
+                        onClick={() => updatePattern(pattern.id, 'bpm', Math.max(40, pattern.bpm - 1))}
+                        className="bg-gray-600 hover:bg-gray-500 p-1 rounded disabled:opacity-50"
+                        disabled={isPlaying || pattern.bpm <= 40}
+                      >
+                        <ChevronLeft size={14} />
+                      </button>
+                      <input
+                        type="number"
+                        min="40"
+                        max="300"
+                        value={pattern.bpm}
+                        onChange={(e) => updatePattern(pattern.id, 'bpm', parseInt(e.target.value))}
+                        className="flex-1 bg-gray-600 rounded px-2 py-1 text-center"
+                        disabled={isPlaying}
+                      />
+                      <button
+                        onClick={() => updatePattern(pattern.id, 'bpm', Math.min(300, pattern.bpm + 1))}
+                        className="bg-gray-600 hover:bg-gray-500 p-1 rounded disabled:opacity-50"
+                        disabled={isPlaying || pattern.bpm >= 300}
+                      >
+                        <ChevronRight size={14} />
+                      </button>
+                    </div>
+                    {/* スライダー */}
                     <input
-                      type="number"
+                      type="range"
                       min="40"
                       max="300"
                       value={pattern.bpm}
                       onChange={(e) => updatePattern(pattern.id, 'bpm', parseInt(e.target.value))}
-                      className="w-full bg-gray-600 rounded px-2 py-1"
+                      className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer slider"
                       disabled={isPlaying}
                     />
                   </div>
                   
-                  <div>
-                    <label className="text-sm text-gray-400">ループ回数</label>
+                  <div className="space-y-2">
+                    <label className="text-sm text-gray-400 block">ループ回数</label>
+                    {/* 矢印ボタンと数値入力 */}
+                    <div className="flex items-center space-x-1">
+                      <button
+                        onClick={() => updatePattern(pattern.id, 'loops', Math.max(1, pattern.loops - 1))}
+                        className="bg-gray-600 hover:bg-gray-500 p-1 rounded disabled:opacity-50"
+                        disabled={isPlaying || pattern.loops <= 1}
+                      >
+                        <ChevronLeft size={14} />
+                      </button>
+                      <input
+                        type="number"
+                        min="1"
+                        max="16"
+                        value={pattern.loops}
+                        onChange={(e) => updatePattern(pattern.id, 'loops', parseInt(e.target.value))}
+                        className="flex-1 bg-gray-600 rounded px-2 py-1 text-center"
+                        disabled={isPlaying}
+                      />
+                      <button
+                        onClick={() => updatePattern(pattern.id, 'loops', Math.min(16, pattern.loops + 1))}
+                        className="bg-gray-600 hover:bg-gray-500 p-1 rounded disabled:opacity-50"
+                        disabled={isPlaying || pattern.loops >= 16}
+                      >
+                        <ChevronRight size={14} />
+                      </button>
+                    </div>
+                    {/* スライダー */}
                     <input
-                      type="number"
+                      type="range"
                       min="1"
                       max="16"
                       value={pattern.loops}
                       onChange={(e) => updatePattern(pattern.id, 'loops', parseInt(e.target.value))}
-                      className="w-full bg-gray-600 rounded px-2 py-1"
+                      className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer slider"
                       disabled={isPlaying}
                     />
                   </div>
                   
-                  <div>
-                    <label className="text-sm text-gray-400">名前</label>
+                  <div className="space-y-2">
+                    <label className="text-sm text-gray-400 block">名前</label>
                     <input
                       type="text"
                       value={pattern.name}
@@ -607,7 +661,7 @@ const PolyrhythmMetronome = () => {
                     />
                   </div>
                   
-                  <div className="flex items-end">
+                  <div className="flex items-end justify-center">
                     <button
                       onClick={() => deletePattern(pattern.id)}
                       className="bg-red-600 hover:bg-red-700 p-2 rounded"
@@ -785,7 +839,6 @@ const PolyrhythmMetronome = () => {
         {/* プリセット一覧 */}
         <div className="bg-gray-800 p-6 rounded-lg">
           <h2 className="text-xl font-semibold mb-4">プリセット一覧</h2>
-          
           
           {savedPresets.length === 0 ? (
             <p className="text-gray-400 text-center py-8">
