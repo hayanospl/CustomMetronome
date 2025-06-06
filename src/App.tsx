@@ -145,22 +145,19 @@ const PolyrhythmMetronome = () => {
       }
     });
     
-    // 初期位置は1.0の範囲で保存（変化率計算用）
+    // 拍の位置を0-0.85の範囲で正規化（右端にも動かせる余地を残す）
     const totalBeats = positions.length;
-    const initialPos = positions.map((pos, index) => ({
-      ...pos,
-      x: index / (totalBeats - 1 || 1)
-    }));
-    
-    // 表示用は0.7の範囲にスケール
     positions.forEach((pos, index) => {
-      pos.x = (index / (totalBeats - 1 || 1)) * 0.7;
+      pos.x = (index / (totalBeats - 1 || 1)) * 0.85;
     });
+    
+    // 初期位置を保存（変化率計算用）
+    const initialPos = positions.map(pos => ({ ...pos }));
     
     setBeatPositions(positions);
     updateBeatTimings(positions);
     setHasCustomTempo(false); // 初期化時はカスタムテンポなし
-    setInitialPositions(initialPos); // 1.0範囲の初期位置を保存
+    setInitialPositions(initialPos); // 初期位置を保存
     setModifiedBeats(new Set()); // 動かされた拍の記録をクリア
     setCustomIntervals(new Map()); // カスタム間隔をクリア
     
@@ -191,11 +188,11 @@ const PolyrhythmMetronome = () => {
       const currentBeatCount = beatPositions.length;
       
       // 総拍数が変化した場合のみ初期化
-      if (totalBeats !== currentBeatCount) {
+      if (totalBeats !== currentBeatCount || beatPositions.some(beat => !patterns[beat.patternIndex])) {
         initializeBeatPositions();
       }
     }
-  }, [patterns.map(p => p.beats * p.loops).join(','), showTempoEditor]);
+  }, [patterns.map(p => `${p.id}-${p.beats}-${p.loops}`).join(','), showTempoEditor]);
 
   // テンポエディターから次の拍までの時間を取得
   const getNextBeatDuration = (): number | null => {
@@ -408,9 +405,27 @@ const PolyrhythmMetronome = () => {
   const handleMouseMove = (e: MouseEvent) => {
     if (!isDragging || !dragInfo || !tempoEditorRef.current) return;
     
-    const rect = tempoEditorRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const newX = Math.max(0, Math.min(1, x / rect.width));
+    // スクロールコンテナ（親要素）の情報を取得
+    const scrollContainer = tempoEditorRef.current.parentElement;
+    if (!scrollContainer) return;
+    
+    // スクロールコンテナ基準での座標計算
+    const containerRect = scrollContainer.getBoundingClientRect();
+    const scrollLeft = scrollContainer.scrollLeft;
+    
+    // マウス位置をスクロールコンテナ内の座標に変換
+    const containerX = e.clientX - containerRect.left;
+    const absoluteX = containerX + scrollLeft;
+    
+    // エディターの実際の幅
+    const editorWidth = tempoEditorRef.current.offsetWidth;
+    
+    // 0-1の範囲での位置（エディター全体に対する割合）
+    const positionRatio = absoluteX / editorWidth;
+    
+    // 85%表示の逆算: 表示位置 = beat.x * 85% なので、beat.x = 表示位置 / 85%
+    const normalizedX = positionRatio / 0.85;
+    const clampedX = Math.max(0, Math.min(1, normalizedX));
     
     setBeatPositions(prevPositions => {
       const newPositions = [...prevPositions];
@@ -418,17 +433,17 @@ const PolyrhythmMetronome = () => {
       
       if (dragIndex > 0) {
         // 最初の拍以外はすべて動かせる
-        let minX = newPositions[dragIndex - 1].x + 0.01; // マージンを小さく
-        let maxX = 0.98; // 最後の拍は98%まで動かせる
+        let minX = newPositions[dragIndex - 1].x + 0.01;
+        let maxX = 1.0; // 最大1.0まで（85%表示で実際は85%位置）
         
         // 最後の拍でない場合は、次の拍との制約を設ける
         if (dragIndex < newPositions.length - 1) {
-          maxX = newPositions[dragIndex + 1].x - 0.01; // マージンを小さく
+          maxX = Math.min(maxX, newPositions[dragIndex + 1].x - 0.01);
         }
         
         newPositions[dragIndex] = {
           ...newPositions[dragIndex],
-          x: Math.max(minX, Math.min(maxX, newX))
+          x: Math.max(minX, Math.min(maxX, clampedX))
         };
         
         // カスタム間隔を計算して保存
@@ -440,7 +455,7 @@ const PolyrhythmMetronome = () => {
         const affectedIntervals = [dragIndex - 1, dragIndex].filter(i => i >= 0 && i < totalBeats - 1);
         
         for (const i of affectedIntervals) {
-          const currentInterval = (newPositions[i + 1].x - newPositions[i].x) / 0.7;
+          const currentInterval = newPositions[i + 1].x - newPositions[i].x;
           const initialInterval = initialPositions[i + 1].x - initialPositions[i].x;
           const changeRatio = currentInterval / initialInterval;
           newCustomIntervals.set(i, baseInterval * changeRatio);
@@ -761,7 +776,7 @@ const PolyrhythmMetronome = () => {
                       <input
                         type="number"
                         min="1"
-                        max="16"
+                        max="32"
                         value={pattern.beats}
                         onChange={(e) => updatePattern(pattern.id, 'beats', parseInt(e.target.value))}
                         className="w-12 bg-gray-600 rounded px-2 py-1 text-center"
@@ -834,16 +849,16 @@ const PolyrhythmMetronome = () => {
                       <input
                         type="number"
                         min="1"
-                        max="16"
+                        max="32"
                         value={pattern.loops}
                         onChange={(e) => updatePattern(pattern.id, 'loops', parseInt(e.target.value))}
                         className="flex-1 bg-gray-600 rounded px-2 py-1 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         disabled={isPlaying}
                       />
                       <button
-                        onClick={() => updatePattern(pattern.id, 'loops', Math.min(16, pattern.loops + 1))}
+                        onClick={() => updatePattern(pattern.id, 'loops', Math.min(32, pattern.loops + 1))}
                         className="bg-gray-600 hover:bg-gray-500 p-1 rounded disabled:opacity-50"
-                        disabled={isPlaying || pattern.loops >= 16}
+                        disabled={isPlaying || pattern.loops >= 32}
                       >
                         <ChevronRight size={14} />
                       </button>
@@ -851,7 +866,7 @@ const PolyrhythmMetronome = () => {
                     <input
                       type="range"
                       min="1"
-                      max="16"
+                      max="32"
                       value={pattern.loops}
                       onChange={(e) => updatePattern(pattern.id, 'loops', parseInt(e.target.value))}
                       className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer slider"
@@ -917,96 +932,102 @@ const PolyrhythmMetronome = () => {
           
           {showTempoEditor && (
             <div className="space-y-4">
-              <div 
-                ref={tempoEditorRef}
-                className="relative bg-gray-900 rounded h-32 overflow-hidden select-none"
-                style={{ userSelect: 'none' }}
-              >
-                <div className="relative h-full w-full">
-                  {/* 拍の位置を表示 */}
-                  {beatPositions.map((beat, index) => {
-                    // 最初の拍以外はすべてドラッグ可能にする
-                    const isDraggable = index > 0;
-                    const isFirstBeatInLoop = beat.isFirstBeat;
-                    
-                    return (
-                      <div key={beat.id}>
-                        {/* 縦線 */}
-                        <div
-                          className={`absolute top-0 bottom-0 w-px pointer-events-none ${
-                            isFirstBeatInLoop ? 'bg-green-500' : 'bg-gray-600'
-                          }`}
-                          style={{ left: `${beat.x * 100}%` }}
-                        />
-                        
-                        {/* ドラッグ可能な点 */}
-                        {isDraggable ? (
-                          <button
-                            type="button"
-                            className={`absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 
-                              w-8 h-8 bg-blue-500 rounded-full cursor-ew-resize hover:bg-blue-400 
-                              transition-colors focus:outline-none focus:ring-4 focus:ring-blue-300
-                              ${isDragging && dragInfo?.beatId === beat.id ? 'ring-4 ring-blue-300 z-10' : ''}`}
-                            style={{ left: `${beat.x * 100}%` }}
-                            onMouseDown={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              console.log('Mouse down on beat:', beat.id);
-                              setIsDragging(true);
-                              setDragInfo({ beatId: beat.id });
-                            }}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                            }}
-                          />
-                        ) : (
+              <div className="bg-gray-900 rounded h-32 overflow-x-auto overflow-y-hidden">
+                <div 
+                  ref={tempoEditorRef}
+                  className="relative h-full select-none"
+                  style={{ 
+                    userSelect: 'none',
+                    width: `${Math.max(100, beatPositions.length * 40 + 200)}px`,
+                    minWidth: '100%'
+                  }}
+                >
+                  <div className="relative h-full w-full">
+                    {/* 拍の位置を表示 */}
+                    {beatPositions.map((beat, index) => {
+                      // 最初の拍以外はすべてドラッグ可能にする
+                      const isDraggable = index > 0;
+                      const isFirstBeatInLoop = beat.isFirstBeat;
+                      
+                      return (
+                        <div key={beat.id}>
+                          {/* 縦線 */}
                           <div
-                            className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 
-                              w-5 h-5 bg-gray-500 rounded-full pointer-events-none"
-                            style={{ left: `${beat.x * 100}%` }}
+                            className={`absolute top-0 bottom-0 w-px pointer-events-none ${
+                              isFirstBeatInLoop ? 'bg-green-500' : 'bg-gray-600'
+                            }`}
+                            style={{ left: `${beat.x * 85}%` }}
                           />
-                        )}
-                        
-                        {/* 拍番号とパターン情報 */}
-                        <div
-                          className="absolute top-2 transform -translate-x-1/2 text-xs text-gray-400 pointer-events-none"
-                          style={{ left: `${beat.x * 100}%` }}
-                        >
-                          {beat.beatInLoop + 1}
-                        </div>
-                        
-                        {/* パターン名表示（最初の拍のみ） */}
-                        {beat.loopIndex === 0 && beat.beatInLoop === 0 && (
+                          
+                          {/* ドラッグ可能な点 */}
+                          {isDraggable ? (
+                            <button
+                              type="button"
+                              className={`absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 
+                                w-8 h-8 bg-blue-500 rounded-full cursor-ew-resize hover:bg-blue-400 
+                                transition-colors focus:outline-none focus:ring-4 focus:ring-blue-300
+                                ${isDragging && dragInfo?.beatId === beat.id ? 'ring-4 ring-blue-300 z-10' : ''}`}
+                              style={{ left: `${beat.x * 85}%` }}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                console.log('Mouse down on beat:', beat.id);
+                                setIsDragging(true);
+                                setDragInfo({ beatId: beat.id });
+                              }}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                              }}
+                            />
+                          ) : (
+                            <div
+                              className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 
+                                w-5 h-5 bg-gray-500 rounded-full pointer-events-none"
+                              style={{ left: `${beat.x * 85}%` }}
+                            />
+                          )}
+                          
+                          {/* 拍番号とパターン情報 */}
                           <div
-                            className="absolute bottom-2 transform -translate-x-1/2 text-xs text-green-400 pointer-events-none"
-                            style={{ left: `${beat.x * 100}%` }}
+                            className="absolute top-2 transform -translate-x-1/2 text-xs text-gray-400 pointer-events-none"
+                            style={{ left: `${beat.x * 85}%` }}
                           >
-                            {patterns[beat.patternIndex].name || `${patterns[beat.patternIndex].beats}/${patterns[beat.patternIndex].subdivision}`}
+                            {beat.beatInLoop + 1}
                           </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                  
-                  {/* 間隔の視覚化 */}
-                  {beatPositions.slice(0, -1).map((beat, index) => {
-                    const nextBeat = beatPositions[index + 1];
-                    const width = (nextBeat.x - beat.x) * 100;
-                    const opacity = Math.min(0.3, Math.max(0.05, width / 10));
+                          
+                          {/* パターン名表示（最初の拍のみ） */}
+                          {beat.loopIndex === 0 && beat.beatInLoop === 0 && patterns[beat.patternIndex] && (
+                            <div
+                              className="absolute bottom-2 transform -translate-x-1/2 text-xs text-green-400 pointer-events-none"
+                              style={{ left: `${beat.x * 85}%` }}
+                            >
+                              {patterns[beat.patternIndex].name || `${patterns[beat.patternIndex].beats}/${patterns[beat.patternIndex].subdivision}`}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                     
-                    return (
-                      <div
-                        key={`interval-${beat.id}`}
-                        className="absolute top-1/4 h-1/2 bg-blue-400 pointer-events-none"
-                        style={{
-                          left: `${beat.x * 100}%`,
-                          width: `${width}%`,
-                          opacity: opacity
-                        }}
-                      />
-                    );
-                  })}
+                    {/* 間隔の視覚化 */}
+                    {beatPositions.slice(0, -1).map((beat, index) => {
+                      const nextBeat = beatPositions[index + 1];
+                      const width = (nextBeat.x - beat.x) * 85;
+                      const opacity = Math.min(0.3, Math.max(0.05, width / 8));
+                      
+                      return (
+                        <div
+                          key={`interval-${beat.id}`}
+                          className="absolute top-1/4 h-1/2 bg-blue-400 pointer-events-none"
+                          style={{
+                            left: `${beat.x * 85}%`,
+                            width: `${width}%`,
+                            opacity: opacity
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
               
@@ -1023,7 +1044,7 @@ const PolyrhythmMetronome = () => {
         {/* プリセット保存 */}
         <div className="bg-gray-800 p-6 rounded-lg mb-6">
           <h2 className="text-xl font-semibold mb-4">プリセット保存</h2>
-          <div className="flex space-x-2 mb-4">
+          <div className="flex space-x-2">
             <input
               type="text"
               value={presetName}
@@ -1040,15 +1061,6 @@ const PolyrhythmMetronome = () => {
               保存
             </button>
           </div>
-          <div className="flex justify-center">
-            <button
-              onClick={() => setShowImportModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded flex items-center"
-            >
-              <Upload size={16} className="mr-2" />
-              プリセットをインポート
-            </button>
-          </div>
           {saveError && (
             <p className="text-red-400 text-sm mt-2">{saveError}</p>
           )}
@@ -1056,7 +1068,16 @@ const PolyrhythmMetronome = () => {
 
         {/* プリセット一覧 */}
         <div className="bg-gray-800 p-6 rounded-lg">
-          <h2 className="text-xl font-semibold mb-4">プリセット一覧</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">プリセット一覧</h2>
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded flex items-center text-sm"
+            >
+              <Upload size={16} className="mr-2" />
+              インポート
+            </button>
+          </div>
           
           {savedPresets.length === 0 ? (
             <p className="text-gray-400 text-center py-8">
