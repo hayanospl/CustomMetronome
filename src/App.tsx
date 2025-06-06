@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, Plus, Trash2, Save, Volume2, RotateCcw, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Play, Pause, Plus, Trash2, Save, Volume2, RotateCcw, TrendingUp, ChevronLeft, ChevronRight, Share2, Download, Upload, Copy, Check } from 'lucide-react';
 
 // 型定義
 interface Pattern {
@@ -24,6 +24,11 @@ interface Preset {
   id: number;
   name: string;
   patterns: Pattern[];
+  tempoCurve?: {
+    enabled: boolean;
+    customIntervals: Array<[number, number]>; // MapをArrayに変換して保存
+    beatPositions: BeatPosition[];
+  };
 }
 
 interface DragInfo {
@@ -58,6 +63,13 @@ const PolyrhythmMetronome = () => {
   const [initialPositions, setInitialPositions] = useState<BeatPosition[]>([]);
   const [modifiedBeats, setModifiedBeats] = useState<Set<number>>(new Set());
   const [customIntervals, setCustomIntervals] = useState<Map<number, number>>(new Map());
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [sharePreset, setSharePreset] = useState<Preset | null>(null);
+  const [shareData, setShareData] = useState('');
+  const [importData, setImportData] = useState('');
+  const [importError, setImportError] = useState('');
+  const [copySuccess, setCopySuccess] = useState(false);
   
   const audioContextRef = useRef<AudioContext | null>(null);
   const nextNoteTimeRef = useRef(0);
@@ -174,9 +186,16 @@ const PolyrhythmMetronome = () => {
   // パターンが変更されたら拍の位置を再初期化
   useEffect(() => {
     if (showTempoEditor) {
-      initializeBeatPositions();
+      // パターンの総拍数を計算
+      const totalBeats = patterns.reduce((sum, pattern) => sum + (pattern.beats * pattern.loops), 0);
+      const currentBeatCount = beatPositions.length;
+      
+      // 総拍数が変化した場合のみ初期化
+      if (totalBeats !== currentBeatCount) {
+        initializeBeatPositions();
+      }
     }
-  }, [patterns, showTempoEditor]);
+  }, [patterns.map(p => p.beats * p.loops).join(','), showTempoEditor]);
 
   // テンポエディターから次の拍までの時間を取得
   const getNextBeatDuration = (): number | null => {
@@ -337,7 +356,12 @@ const PolyrhythmMetronome = () => {
     const newPreset: Preset = {
       id: Date.now(),
       name: presetName,
-      patterns: [...patterns]
+      patterns: [...patterns],
+      tempoCurve: showTempoEditor ? {
+        enabled: true,
+        customIntervals: Array.from(customIntervals.entries()),
+        beatPositions: [...beatPositions]
+      } : undefined
     };
     
     const updatedPresets = [...savedPresets, newPreset];
@@ -349,6 +373,29 @@ const PolyrhythmMetronome = () => {
 
   const loadPreset = (preset: Preset) => {
     setPatterns(preset.patterns);
+    
+    // テンポカーブ情報がある場合は復元
+    if (preset.tempoCurve) {
+      setShowTempoEditor(preset.tempoCurve.enabled);
+      if (preset.tempoCurve.enabled) {
+        // カスタム間隔を復元
+        const restoredIntervals = new Map(preset.tempoCurve.customIntervals);
+        setCustomIntervals(restoredIntervals);
+        
+        // 拍の位置を復元
+        setBeatPositions(preset.tempoCurve.beatPositions);
+        updateBeatTimings(preset.tempoCurve.beatPositions);
+        
+        setHasCustomTempo(restoredIntervals.size > 0);
+      }
+    } else {
+      // テンポカーブ情報がない場合は初期化
+      setShowTempoEditor(false);
+      setHasCustomTempo(false);
+      setCustomIntervals(new Map());
+      setBeatPositions([]);
+      beatTimingsRef.current = [];
+    }
   };
 
   const clearPatterns = () => {
@@ -438,6 +485,91 @@ const PolyrhythmMetronome = () => {
     beatTimingsRef.current = []; // beatTimingsRefもクリア
   };
 
+  // プリセット共有機能
+  const sharePresetFunction = (preset: Preset) => {
+    const shareData = btoa(JSON.stringify(preset));
+    setSharePreset(preset);
+    setShareData(shareData);
+    setShowShareModal(true);
+  };
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(shareData);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (err) {
+      console.error('クリップボードへのコピーに失敗しました:', err);
+    }
+  };
+
+  const importPreset = () => {
+    if (!importData.trim()) {
+      setImportError('インポートデータを入力してください');
+      return;
+    }
+
+    try {
+      // Base64デコードを試行
+      let presetData;
+      try {
+        presetData = JSON.parse(atob(importData.trim()));
+      } catch {
+        // Base64でない場合は直接JSONとしてパース
+        presetData = JSON.parse(importData.trim());
+      }
+
+      // プリセットデータの検証
+      if (!presetData.name || !Array.isArray(presetData.patterns)) {
+        throw new Error('無効なプリセット形式です');
+      }
+
+      // パターンの検証
+      for (const pattern of presetData.patterns) {
+        if (!pattern.hasOwnProperty('beats') || !pattern.hasOwnProperty('subdivision') || 
+            !pattern.hasOwnProperty('loops') || !pattern.hasOwnProperty('bpm')) {
+          throw new Error('無効なパターン形式です');
+        }
+      }
+
+      // 重複チェック（名前が同じプリセットがある場合は番号を付加）
+      let importName = presetData.name;
+      let counter = 1;
+      while (savedPresets.some(p => p.name === importName)) {
+        importName = `${presetData.name} (${counter})`;
+        counter++;
+      }
+
+      const newPreset: Preset = {
+        id: Date.now(),
+        name: importName,
+        patterns: presetData.patterns.map((p: any) => ({
+          id: Date.now() + Math.random(),
+          name: p.name || '',
+          beats: p.beats,
+          subdivision: p.subdivision,
+          loops: p.loops,
+          bpm: p.bpm
+        })),
+        tempoCurve: presetData.tempoCurve ? {
+          enabled: presetData.tempoCurve.enabled,
+          customIntervals: presetData.tempoCurve.customIntervals || [],
+          beatPositions: presetData.tempoCurve.beatPositions || []
+        } : undefined
+      };
+
+      const updatedPresets = [...savedPresets, newPreset];
+      setSavedPresets(updatedPresets);
+      localStorage.setItem('metronomePresets', JSON.stringify(updatedPresets));
+      
+      setImportData('');
+      setImportError('');
+      setShowImportModal(false);
+    } catch (error) {
+      setImportError('インポートに失敗しました。データ形式を確認してください。');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-900 text-white p-4">
       <div className="max-w-4xl mx-auto">
@@ -468,6 +600,87 @@ const PolyrhythmMetronome = () => {
                   className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded"
                 >
                   削除
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* 共有モーダル */}
+        {showShareModal && sharePreset && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+              <h3 className="text-lg font-semibold mb-4">プリセットの共有</h3>
+              <p className="text-gray-300 mb-2">「{sharePreset.name}」</p>
+              <p className="text-sm text-gray-400 mb-4">
+                以下のデータをコピーして他の人に共有してください
+              </p>
+              <div className="bg-gray-900 p-3 rounded mb-4">
+                <textarea
+                  value={shareData}
+                  readOnly
+                  className="w-full h-32 bg-transparent text-sm text-gray-300 resize-none border-none outline-none"
+                  onClick={(e) => e.currentTarget.select()}
+                />
+              </div>
+              <div className="flex space-x-3 justify-end">
+                <button
+                  onClick={() => setShowShareModal(false)}
+                  className="bg-gray-600 hover:bg-gray-700 px-4 py-2 rounded"
+                >
+                  閉じる
+                </button>
+                <button
+                  onClick={copyToClipboard}
+                  className={`px-4 py-2 rounded flex items-center ${
+                    copySuccess ? 'bg-green-600' : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
+                >
+                  {copySuccess ? <Check size={16} className="mr-2" /> : <Copy size={16} className="mr-2" />}
+                  {copySuccess ? 'コピー完了！' : 'コピー'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* インポートモーダル */}
+        {showImportModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+              <h3 className="text-lg font-semibold mb-4">プリセットのインポート</h3>
+              <p className="text-sm text-gray-400 mb-4">
+                共有されたプリセットデータを貼り付けてください
+              </p>
+              <textarea
+                value={importData}
+                onChange={(e) => {
+                  setImportData(e.target.value);
+                  setImportError('');
+                }}
+                placeholder="プリセットデータを貼り付け..."
+                className="w-full h-32 bg-gray-700 rounded px-3 py-2 text-sm resize-none mb-4"
+              />
+              {importError && (
+                <p className="text-red-400 text-sm mb-4">{importError}</p>
+              )}
+              <div className="flex space-x-3 justify-end">
+                <button
+                  onClick={() => {
+                    setShowImportModal(false);
+                    setImportData('');
+                    setImportError('');
+                  }}
+                  className="bg-gray-600 hover:bg-gray-700 px-4 py-2 rounded"
+                >
+                  キャンセル
+                </button>
+                <button
+                  onClick={importPreset}
+                  className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded flex items-center"
+                >
+                  <Upload size={16} className="mr-2" />
+                  インポート
                 </button>
               </div>
             </div>
@@ -570,10 +783,9 @@ const PolyrhythmMetronome = () => {
                     </div>
                   </div>
                   
-                  <div className="space-y-2">
-                    <label className="text-sm text-gray-400 block">BPM (4分音符基準)</label>
-                    {/* 矢印ボタンと数値入力 */}
-                    <div className="flex items-center space-x-1">
+                  <div>
+                    <label className="text-sm text-gray-400 block mb-2">BPM (4分音符基準)</label>
+                    <div className="flex items-center space-x-1 mb-2">
                       <button
                         onClick={() => updatePattern(pattern.id, 'bpm', Math.max(40, pattern.bpm - 1))}
                         className="bg-gray-600 hover:bg-gray-500 p-1 rounded disabled:opacity-50"
@@ -587,7 +799,7 @@ const PolyrhythmMetronome = () => {
                         max="300"
                         value={pattern.bpm}
                         onChange={(e) => updatePattern(pattern.id, 'bpm', parseInt(e.target.value))}
-                        className="flex-1 bg-gray-600 rounded px-2 py-1 text-center"
+                        className="flex-1 bg-gray-600 rounded px-2 py-1 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         disabled={isPlaying}
                       />
                       <button
@@ -598,7 +810,6 @@ const PolyrhythmMetronome = () => {
                         <ChevronRight size={14} />
                       </button>
                     </div>
-                    {/* スライダー */}
                     <input
                       type="range"
                       min="40"
@@ -610,10 +821,9 @@ const PolyrhythmMetronome = () => {
                     />
                   </div>
                   
-                  <div className="space-y-2">
-                    <label className="text-sm text-gray-400 block">ループ回数</label>
-                    {/* 矢印ボタンと数値入力 */}
-                    <div className="flex items-center space-x-1">
+                  <div>
+                    <label className="text-sm text-gray-400 block mb-2">ループ回数</label>
+                    <div className="flex items-center space-x-1 mb-2">
                       <button
                         onClick={() => updatePattern(pattern.id, 'loops', Math.max(1, pattern.loops - 1))}
                         className="bg-gray-600 hover:bg-gray-500 p-1 rounded disabled:opacity-50"
@@ -627,7 +837,7 @@ const PolyrhythmMetronome = () => {
                         max="16"
                         value={pattern.loops}
                         onChange={(e) => updatePattern(pattern.id, 'loops', parseInt(e.target.value))}
-                        className="flex-1 bg-gray-600 rounded px-2 py-1 text-center"
+                        className="flex-1 bg-gray-600 rounded px-2 py-1 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         disabled={isPlaying}
                       />
                       <button
@@ -638,7 +848,6 @@ const PolyrhythmMetronome = () => {
                         <ChevronRight size={14} />
                       </button>
                     </div>
-                    {/* スライダー */}
                     <input
                       type="range"
                       min="1"
@@ -650,8 +859,8 @@ const PolyrhythmMetronome = () => {
                     />
                   </div>
                   
-                  <div className="space-y-2">
-                    <label className="text-sm text-gray-400 block">名前</label>
+                  <div>
+                    <label className="text-sm text-gray-400 block mb-2">名前</label>
                     <input
                       type="text"
                       value={pattern.name}
@@ -661,7 +870,7 @@ const PolyrhythmMetronome = () => {
                     />
                   </div>
                   
-                  <div className="flex items-end justify-center">
+                  <div className="flex items-start justify-center pt-6">
                     <button
                       onClick={() => deletePattern(pattern.id)}
                       className="bg-red-600 hover:bg-red-700 p-2 rounded"
@@ -814,7 +1023,7 @@ const PolyrhythmMetronome = () => {
         {/* プリセット保存 */}
         <div className="bg-gray-800 p-6 rounded-lg mb-6">
           <h2 className="text-xl font-semibold mb-4">プリセット保存</h2>
-          <div className="flex space-x-2">
+          <div className="flex space-x-2 mb-4">
             <input
               type="text"
               value={presetName}
@@ -828,7 +1037,16 @@ const PolyrhythmMetronome = () => {
               disabled={isPlaying}
             >
               <Save size={16} className="mr-2" />
-              プリセット保存
+              保存
+            </button>
+          </div>
+          <div className="flex justify-center">
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded flex items-center"
+            >
+              <Upload size={16} className="mr-2" />
+              プリセットをインポート
             </button>
           </div>
           {saveError && (
@@ -849,7 +1067,12 @@ const PolyrhythmMetronome = () => {
               {savedPresets.map((preset) => (
                 <div key={preset.id} className="bg-gray-700 p-3 rounded flex justify-between items-center">
                   <div>
-                    <h3 className="font-semibold">{preset.name}</h3>
+                    <h3 className="font-semibold flex items-center">
+                      {preset.name}
+                      {preset.tempoCurve?.enabled && (
+                        <span className="ml-2 text-xs bg-purple-600 px-2 py-1 rounded">カーブ</span>
+                      )}
+                    </h3>
                     <p className="text-sm text-gray-400">
                       {preset.patterns.every(p => !p.name) 
                         ? preset.patterns.map(p => `${p.beats}/${p.subdivision}`).join(' → ')
@@ -864,6 +1087,13 @@ const PolyrhythmMetronome = () => {
                       disabled={isPlaying}
                     >
                       読込
+                    </button>
+                    <button
+                      onClick={() => sharePresetFunction(preset)}
+                      className="bg-purple-600 hover:bg-purple-700 p-1 rounded"
+                      title="共有"
+                    >
+                      <Share2 size={16} />
                     </button>
                     <button
                       onClick={() => setDeleteConfirm(preset.id)}
