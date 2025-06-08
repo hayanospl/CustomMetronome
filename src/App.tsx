@@ -430,7 +430,7 @@ const PolyrhythmMetronome = () => {
     const containerX = e.clientX - containerRect.left;
     const absoluteX = containerX + scrollLeft;
     
-    // エディターの実際の幅
+    // エディタの実際の幅
     const editorWidth = tempoEditorRef.current.offsetWidth;
     
     // 0-1の範囲での位置（エディター全体に対する割合）
