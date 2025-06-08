@@ -1,1 +1,43 @@
-@import "tailwindcss"; 
+@import "tailwindcss";
+
+@layer base {
+  /* number inputのスピナーボタンを強制的に隠す */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none !important;
+    margin: 0 !important;
+    display: none !important;
+  }
+
+  input[type="number"] {
+    -moz-appearance: textfield !important;
+    appearance: textfield !important;
+  }
+
+  /* Chromeでの追加対策 */
+  input[type="number"]::-webkit-textfield-decoration-container {
+    display: none !important;
+  }
+}
+
+@layer components {
+  /* sliderのスタイル */
+  .slider::-webkit-slider-thumb {
+    appearance: none;
+    height: 20px;
+    width: 20px;
+    border-radius: 50%;
+    background: #3b82f6;
+    cursor: pointer;
+    border: 2px solid #1e40af;
+  }
+
+  .slider::-moz-range-thumb {
+    height: 20px;
+    width: 20px;
+    border-radius: 50%;
+    background: #3b82f6;
+    cursor: pointer;
+    border: 2px solid #1e40af;
+  }
+} 

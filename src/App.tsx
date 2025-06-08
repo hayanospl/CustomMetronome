@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, Plus, Trash2, Save, Volume2, RotateCcw, TrendingUp, ChevronLeft, ChevronRight, Share2, Download, Upload, Copy, Check } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Play, Pause, Plus, Trash2, Save, RotateCcw, TrendingUp, ChevronLeft, ChevronRight, Share2, Upload, Copy, Check } from 'lucide-react';
 
 // 型定義
 interface Pattern {
@@ -44,7 +44,7 @@ declare global {
 
 const PolyrhythmMetronome = () => {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentBpm, setCurrentBpm] = useState(120);
+
   const [patterns, setPatterns] = useState<Pattern[]>([
     { id: 1, name: '', beats: 4, subdivision: 4, loops: 2, bpm: 120 }
   ]);
@@ -55,13 +55,14 @@ const PolyrhythmMetronome = () => {
   const [presetName, setPresetName] = useState('');
   const [saveError, setSaveError] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [deletePatternConfirm, setDeletePatternConfirm] = useState<number | null>(null);
   const [showTempoEditor, setShowTempoEditor] = useState(false);
   const [beatPositions, setBeatPositions] = useState<BeatPosition[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [dragInfo, setDragInfo] = useState<DragInfo | null>(null);
-  const [hasCustomTempo, setHasCustomTempo] = useState(false);
+  const [_hasCustomTempo, setHasCustomTempo] = useState(false);
   const [initialPositions, setInitialPositions] = useState<BeatPosition[]>([]);
-  const [modifiedBeats, setModifiedBeats] = useState<Set<number>>(new Set());
+  const [_modifiedBeats, setModifiedBeats] = useState<Set<number>>(new Set());
   const [customIntervals, setCustomIntervals] = useState<Map<number, number>>(new Map());
   const [showShareModal, setShowShareModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -105,7 +106,7 @@ const PolyrhythmMetronome = () => {
     };
   }, []);
 
-  const playClick = (beatNumber: number, isFirstBeat: boolean) => {
+  const playClick = (_beatNumber: number, isFirstBeat: boolean) => {
     const audioContext = audioContextRef.current;
     if (!audioContext) return;
     
@@ -588,7 +589,7 @@ const PolyrhythmMetronome = () => {
   return (
     <div className="min-h-screen bg-gray-900 text-white p-4">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8 text-center">変拍子対応メトロノーム</h1>
+        <h1 className="text-3xl font-bold mb-8 text-center">カスタムメトロノーム</h1>
         
         {/* 削除確認モーダル */}
         {deleteConfirm && (
@@ -611,6 +612,35 @@ const PolyrhythmMetronome = () => {
                     setSavedPresets(updatedPresets);
                     localStorage.setItem('metronomePresets', JSON.stringify(updatedPresets));
                     setDeleteConfirm(null);
+                  }}
+                  className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded"
+                >
+                  削除
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* パターン削除確認モーダル */}
+        {deletePatternConfirm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-gray-800 p-6 rounded-lg shadow-xl max-w-sm w-full mx-4">
+              <h3 className="text-lg font-semibold mb-2">パターンの削除</h3>
+              <p className="text-gray-300 mb-4">
+                「{patterns.find(p => p.id === deletePatternConfirm)?.name || 'このパターン'}」を削除しますか？
+              </p>
+              <div className="flex space-x-3 justify-end">
+                <button
+                  onClick={() => setDeletePatternConfirm(null)}
+                  className="bg-gray-600 hover:bg-gray-700 px-4 py-2 rounded"
+                >
+                  キャンセル
+                </button>
+                <button
+                  onClick={() => {
+                    deletePattern(deletePatternConfirm);
+                    setDeletePatternConfirm(null);
                   }}
                   className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded"
                 >
@@ -742,328 +772,360 @@ const PolyrhythmMetronome = () => {
           )}
         </div>
 
-        {/* パターン設定 */}
-        <div className="bg-gray-800 p-6 rounded-lg mb-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">パターン設定</h2>
-            <div className="flex space-x-2">
-              <button
-                onClick={clearPatterns}
-                className="bg-gray-600 hover:bg-gray-700 p-2 rounded flex items-center"
-                disabled={isPlaying}
-                title="クリア"
-              >
-                <RotateCcw size={20} />
-              </button>
-              <button
-                onClick={addPattern}
-                className="bg-blue-600 hover:bg-blue-700 p-2 rounded"
-                disabled={isPlaying}
-                title="パターン追加"
-              >
-                <Plus size={20} />
-              </button>
+
+
+        {/* プリセット設定エリア */}
+        <div className="bg-gray-700 p-1 rounded-lg mb-6">
+          <div className="bg-gray-800 p-6 rounded-lg mb-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">パターン設定</h2>
+              <div className="flex space-x-2">
+                <button
+                  onClick={clearPatterns}
+                  className="bg-gray-600 hover:bg-gray-700 p-2 rounded flex items-center"
+                  disabled={isPlaying}
+                  title="クリア"
+                >
+                  <RotateCcw size={20} />
+                </button>
+                <button
+                  onClick={addPattern}
+                  className="bg-blue-600 hover:bg-blue-700 p-2 rounded"
+                  disabled={isPlaying}
+                  title="パターン追加"
+                >
+                  <Plus size={20} />
+                </button>
+              </div>
             </div>
-          </div>
-          
-          <div className="space-y-4">
-            {patterns.map((pattern, index) => (
-              <div key={pattern.id} className="bg-gray-700 p-4 rounded">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                  <div>
-                    <label className="text-sm text-gray-400 block mb-2">拍子</label>
-                    <div className="flex items-center space-x-1">
-                      <input
-                        type="number"
-                        min="1"
-                        max="32"
-                        value={pattern.beats}
-                        onChange={(e) => updatePattern(pattern.id, 'beats', parseInt(e.target.value))}
-                        className="w-12 bg-gray-600 rounded px-2 py-1 text-center"
-                        disabled={isPlaying}
-                      />
-                      <span>/</span>
-                      <select
-                        value={pattern.subdivision}
-                        onChange={(e) => updatePattern(pattern.id, 'subdivision', parseInt(e.target.value))}
-                        className="w-12 bg-gray-600 rounded px-1 py-1 text-center"
-                        disabled={isPlaying}
-                      >
-                        <option value="2">2</option>
-                        <option value="4">4</option>
-                        <option value="8">8</option>
-                        <option value="16">16</option>
-                        <option value="32">32</option>
-                      </select>
-                    </div>
-                  </div>
+            
+            <div className="space-y-4">
+              {patterns.map((pattern, index) => (
+                <div key={pattern.id} className="bg-gray-700 p-4 rounded">
+                                  <div className="relative">
+                  {/* 削除ボタンを右上に配置 */}
+                  <button
+                    onClick={() => setDeletePatternConfirm(pattern.id)}
+                    className="absolute top-0 right-0 bg-red-600 hover:bg-red-700 p-1 rounded z-10"
+                    disabled={patterns.length === 1 || isPlaying}
+                    title="パターンを削除"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                   
-                  <div>
-                    <label className="text-sm text-gray-400 block mb-2">BPM (4分音符基準)</label>
-                    <div className="flex items-center space-x-1 mb-2">
-                      <button
-                        onClick={() => updatePattern(pattern.id, 'bpm', Math.max(40, pattern.bpm - 1))}
-                        className="bg-gray-600 hover:bg-gray-500 p-1 rounded disabled:opacity-50"
-                        disabled={isPlaying || pattern.bpm <= 40}
-                      >
-                        <ChevronLeft size={14} />
-                      </button>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 pr-10">
+                    <div>
+                      <label className="text-sm text-gray-400 block mb-2">拍子</label>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => updatePattern(pattern.id, 'beats', Math.max(1, pattern.beats - 1))}
+                          className="bg-gray-600 hover:bg-gray-500 px-1.5 py-1 rounded disabled:opacity-50 flex-shrink-0"
+                          disabled={isPlaying || pattern.beats <= 1}
+                        >
+                          <ChevronLeft size={12} />
+                        </button>
+                        <input
+                          type="number"
+                          min="1"
+                          max="32"
+                          value={pattern.beats}
+                          onChange={(e) => updatePattern(pattern.id, 'beats', parseInt(e.target.value))}
+                          className="w-12 bg-gray-600 rounded px-1 py-1 text-center text-sm flex-shrink-0"
+                          disabled={isPlaying}
+                        />
+                        <button
+                          onClick={() => updatePattern(pattern.id, 'beats', Math.min(32, pattern.beats + 1))}
+                          className="bg-gray-600 hover:bg-gray-500 px-1.5 py-1 rounded disabled:opacity-50 flex-shrink-0"
+                          disabled={isPlaying || pattern.beats >= 32}
+                        >
+                          <ChevronRight size={12} />
+                        </button>
+                        <span className="text-gray-400 text-sm mx-0.5">/</span>
+                        <select
+                          value={pattern.subdivision}
+                          onChange={(e) => updatePattern(pattern.id, 'subdivision', parseInt(e.target.value))}
+                          className="w-12 bg-gray-600 rounded px-1 py-1 text-center text-sm flex-shrink-0"
+                          disabled={isPlaying}
+                        >
+                          <option value="2">2</option>
+                          <option value="4">4</option>
+                          <option value="8">8</option>
+                          <option value="16">16</option>
+                          <option value="32">32</option>
+                        </select>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="text-sm text-gray-400 block mb-2">BPM (4分音符基準)</label>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => updatePattern(pattern.id, 'bpm', Math.max(40, pattern.bpm - 1))}
+                          className="bg-gray-600 hover:bg-gray-500 px-1.5 py-1 rounded disabled:opacity-50 flex-shrink-0"
+                          disabled={isPlaying || pattern.bpm <= 40}
+                        >
+                          <ChevronLeft size={12} />
+                        </button>
+                        <input
+                          type="number"
+                          min="40"
+                          max="300"
+                          value={pattern.bpm}
+                          onChange={(e) => updatePattern(pattern.id, 'bpm', parseInt(e.target.value))}
+                          className="flex-1 bg-gray-600 rounded px-2 py-1 text-center text-sm"
+                          disabled={isPlaying}
+                        />
+                        <button
+                          onClick={() => updatePattern(pattern.id, 'bpm', Math.min(300, pattern.bpm + 1))}
+                          className="bg-gray-600 hover:bg-gray-500 px-1.5 py-1 rounded disabled:opacity-50 flex-shrink-0"
+                          disabled={isPlaying || pattern.bpm >= 300}
+                        >
+                          <ChevronRight size={12} />
+                        </button>
+                      </div>
                       <input
-                        type="number"
+                        type="range"
                         min="40"
                         max="300"
                         value={pattern.bpm}
                         onChange={(e) => updatePattern(pattern.id, 'bpm', parseInt(e.target.value))}
-                        className="flex-1 bg-gray-600 rounded px-2 py-1 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer slider mt-1"
                         disabled={isPlaying}
                       />
-                      <button
-                        onClick={() => updatePattern(pattern.id, 'bpm', Math.min(300, pattern.bpm + 1))}
-                        className="bg-gray-600 hover:bg-gray-500 p-1 rounded disabled:opacity-50"
-                        disabled={isPlaying || pattern.bpm >= 300}
-                      >
-                        <ChevronRight size={14} />
-                      </button>
                     </div>
-                    <input
-                      type="range"
-                      min="40"
-                      max="300"
-                      value={pattern.bpm}
-                      onChange={(e) => updatePattern(pattern.id, 'bpm', parseInt(e.target.value))}
-                      className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer slider"
-                      disabled={isPlaying}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="text-sm text-gray-400 block mb-2">ループ回数</label>
-                    <div className="flex items-center space-x-1 mb-2">
-                      <button
-                        onClick={() => updatePattern(pattern.id, 'loops', Math.max(1, pattern.loops - 1))}
-                        className="bg-gray-600 hover:bg-gray-500 p-1 rounded disabled:opacity-50"
-                        disabled={isPlaying || pattern.loops <= 1}
-                      >
-                        <ChevronLeft size={14} />
-                      </button>
+                    
+                    <div>
+                      <label className="text-sm text-gray-400 block mb-2">ループ回数</label>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => updatePattern(pattern.id, 'loops', Math.max(1, pattern.loops - 1))}
+                          className="bg-gray-600 hover:bg-gray-500 px-1.5 py-1 rounded disabled:opacity-50 flex-shrink-0"
+                          disabled={isPlaying || pattern.loops <= 1}
+                        >
+                          <ChevronLeft size={12} />
+                        </button>
+                        <input
+                          type="number"
+                          min="1"
+                          max="32"
+                          value={pattern.loops}
+                          onChange={(e) => updatePattern(pattern.id, 'loops', parseInt(e.target.value))}
+                          className="flex-1 bg-gray-600 rounded px-2 py-1 text-center text-sm"
+                          disabled={isPlaying}
+                        />
+                        <button
+                          onClick={() => updatePattern(pattern.id, 'loops', Math.min(32, pattern.loops + 1))}
+                          className="bg-gray-600 hover:bg-gray-500 px-1.5 py-1 rounded disabled:opacity-50 flex-shrink-0"
+                          disabled={isPlaying || pattern.loops >= 32}
+                        >
+                          <ChevronRight size={12} />
+                        </button>
+                      </div>
                       <input
-                        type="number"
+                        type="range"
                         min="1"
                         max="32"
                         value={pattern.loops}
                         onChange={(e) => updatePattern(pattern.id, 'loops', parseInt(e.target.value))}
-                        className="flex-1 bg-gray-600 rounded px-2 py-1 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer slider mt-1"
                         disabled={isPlaying}
                       />
-                      <button
-                        onClick={() => updatePattern(pattern.id, 'loops', Math.min(32, pattern.loops + 1))}
-                        className="bg-gray-600 hover:bg-gray-500 p-1 rounded disabled:opacity-50"
-                        disabled={isPlaying || pattern.loops >= 32}
-                      >
-                        <ChevronRight size={14} />
-                      </button>
                     </div>
-                    <input
-                      type="range"
-                      min="1"
-                      max="32"
-                      value={pattern.loops}
-                      onChange={(e) => updatePattern(pattern.id, 'loops', parseInt(e.target.value))}
-                      className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer slider"
-                      disabled={isPlaying}
-                    />
+                    
+                    <div>
+                      <label className="text-sm text-gray-400 block mb-2">名前</label>
+                      <input
+                        type="text"
+                        value={pattern.name}
+                        onChange={(e) => updatePattern(pattern.id, 'name', e.target.value)}
+                        className="w-full bg-gray-600 rounded px-2 py-1 text-sm"
+                        disabled={isPlaying}
+                      />
+                    </div>
                   </div>
+                </div>
                   
-                  <div>
-                    <label className="text-sm text-gray-400 block mb-2">名前</label>
-                    <input
-                      type="text"
-                      value={pattern.name}
-                      onChange={(e) => updatePattern(pattern.id, 'name', e.target.value)}
-                      className="w-full bg-gray-600 rounded px-2 py-1"
-                      disabled={isPlaying}
-                    />
-                  </div>
-                  
-                  <div className="flex items-start justify-center pt-6">
-                    <button
-                      onClick={() => deletePattern(pattern.id)}
-                      className="bg-red-600 hover:bg-red-700 p-2 rounded"
-                      disabled={patterns.length === 1 || isPlaying}
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                  {index === currentPatternIndex && isPlaying && (
+                    <div className="mt-2 text-green-400 text-sm">▶ 現在再生中</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-gray-800 p-6 rounded-lg mb-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">テンポカーブ</h2>
+              <div className="flex items-center space-x-2">
+                {showTempoEditor && (
+                  <button
+                    onClick={resetBeatPositions}
+                    className="bg-gray-600 hover:bg-gray-700 p-2 rounded"
+                    title="リセット"
+                  >
+                    <RotateCcw size={18} />
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowTempoEditor(!showTempoEditor)}
+                  className={`px-3 py-2 rounded flex items-center ${
+                    showTempoEditor ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-600 hover:bg-gray-700'
+                  }`}
+                >
+                  <TrendingUp size={18} className="mr-2" />
+                  {showTempoEditor ? 'ON' : 'OFF'}
+                </button>
+              </div>
+            </div>
+            
+            {showTempoEditor && (
+              <div className="space-y-4">
+                <div className="bg-gray-900 rounded h-32 overflow-x-auto overflow-y-hidden">
+                  <div 
+                    ref={tempoEditorRef}
+                    className="relative h-full select-none"
+                    style={{ 
+                      userSelect: 'none',
+                      width: `${Math.max(100, beatPositions.length * 40 + 200)}px`,
+                      minWidth: '100%'
+                    }}
+                  >
+                    <div className="relative h-full w-full">
+                      {/* 拍の位置を表示 */}
+                      {beatPositions.map((beat, index) => {
+                        // 最初の拍以外はすべてドラッグ可能にする
+                        const isDraggable = index > 0;
+                        const isFirstBeatInLoop = beat.isFirstBeat;
+                        
+                        return (
+                          <div key={beat.id}>
+                            {/* 縦線 */}
+                            <div
+                              className={`absolute top-0 bottom-0 w-px pointer-events-none ${
+                                isFirstBeatInLoop ? 'bg-green-500' : 'bg-gray-600'
+                              }`}
+                              style={{ left: `${beat.x * 85}%` }}
+                            />
+                            
+                            {/* ドラッグ可能な点 */}
+                            {isDraggable ? (
+                              <button
+                                type="button"
+                                className={`absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 
+                                  w-8 h-8 bg-blue-500 rounded-full cursor-ew-resize hover:bg-blue-400 
+                                  transition-colors focus:outline-none focus:ring-4 focus:ring-blue-300
+                                  ${isDragging && dragInfo?.beatId === beat.id ? 'ring-4 ring-blue-300 z-10' : ''}`}
+                                style={{ left: `${beat.x * 85}%` }}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  console.log('Mouse down on beat:', beat.id);
+                                  setIsDragging(true);
+                                  setDragInfo({ beatId: beat.id });
+                                }}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                }}
+                              />
+                            ) : (
+                              <div
+                                className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 
+                                  w-5 h-5 bg-gray-500 rounded-full pointer-events-none"
+                                style={{ left: `${beat.x * 85}%` }}
+                              />
+                            )}
+                            
+                            {/* 拍番号とパターン情報 */}
+                            <div
+                              className="absolute top-2 transform -translate-x-1/2 text-xs text-gray-400 pointer-events-none"
+                              style={{ left: `${beat.x * 85}%` }}
+                            >
+                              {beat.beatInLoop + 1}
+                            </div>
+                            
+                            {/* パターン名表示（最初の拍のみ） */}
+                            {beat.loopIndex === 0 && beat.beatInLoop === 0 && patterns[beat.patternIndex] && (
+                              <div
+                                className="absolute bottom-2 transform -translate-x-1/2 text-xs text-green-400 pointer-events-none"
+                                style={{ left: `${beat.x * 85}%` }}
+                                onClick={() => {
+                                  console.log('Pattern debug:', {
+                                    beatId: beat.id,
+                                    patternIndex: beat.patternIndex,
+                                    pattern: patterns[beat.patternIndex],
+                                    allPatterns: patterns.length,
+                                    allBeats: beatPositions.length
+                                  });
+                                }}
+                              >
+                                {patterns[beat.patternIndex].name || `${patterns[beat.patternIndex].beats}/${patterns[beat.patternIndex].subdivision}`}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                      
+                      {/* 間隔の視覚化 */}
+                      {beatPositions.slice(0, -1).map((beat, index) => {
+                        const nextBeat = beatPositions[index + 1];
+                        const width = (nextBeat.x - beat.x) * 85;
+                        const opacity = Math.min(0.3, Math.max(0.05, width / 8));
+                        
+                        return (
+                          <div
+                            key={`interval-${beat.id}`}
+                            className="absolute top-1/4 h-1/2 bg-blue-400 pointer-events-none"
+                            style={{
+                              left: `${beat.x * 85}%`,
+                              width: `${width}%`,
+                              opacity: opacity
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
                 
-                {index === currentPatternIndex && isPlaying && (
-                  <div className="mt-2 text-green-400 text-sm">▶ 現在再生中</div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* テンポエディター */}
-        <div className="bg-gray-800 p-6 rounded-lg mb-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">テンポカーブ</h2>
-            <div className="flex items-center space-x-2">
-              {showTempoEditor && (
-                <button
-                  onClick={resetBeatPositions}
-                  className="bg-gray-600 hover:bg-gray-700 p-2 rounded"
-                  title="リセット"
-                >
-                  <RotateCcw size={18} />
-                </button>
-              )}
-              <button
-                onClick={() => setShowTempoEditor(!showTempoEditor)}
-                className={`px-3 py-2 rounded flex items-center ${
-                  showTempoEditor ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-600 hover:bg-gray-700'
-                }`}
-              >
-                <TrendingUp size={18} className="mr-2" />
-                {showTempoEditor ? 'ON' : 'OFF'}
-              </button>
-            </div>
-          </div>
-          
-          {showTempoEditor && (
-            <div className="space-y-4">
-              <div className="bg-gray-900 rounded h-32 overflow-x-auto overflow-y-hidden">
-                <div 
-                  ref={tempoEditorRef}
-                  className="relative h-full select-none"
-                  style={{ 
-                    userSelect: 'none',
-                    width: `${Math.max(100, beatPositions.length * 40 + 200)}px`,
-                    minWidth: '100%'
-                  }}
-                >
-                  <div className="relative h-full w-full">
-                    {/* 拍の位置を表示 */}
-                    {beatPositions.map((beat, index) => {
-                      // 最初の拍以外はすべてドラッグ可能にする
-                      const isDraggable = index > 0;
-                      const isFirstBeatInLoop = beat.isFirstBeat;
-                      
-                      return (
-                        <div key={beat.id}>
-                          {/* 縦線 */}
-                          <div
-                            className={`absolute top-0 bottom-0 w-px pointer-events-none ${
-                              isFirstBeatInLoop ? 'bg-green-500' : 'bg-gray-600'
-                            }`}
-                            style={{ left: `${beat.x * 85}%` }}
-                          />
-                          
-                          {/* ドラッグ可能な点 */}
-                          {isDraggable ? (
-                            <button
-                              type="button"
-                              className={`absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 
-                                w-8 h-8 bg-blue-500 rounded-full cursor-ew-resize hover:bg-blue-400 
-                                transition-colors focus:outline-none focus:ring-4 focus:ring-blue-300
-                                ${isDragging && dragInfo?.beatId === beat.id ? 'ring-4 ring-blue-300 z-10' : ''}`}
-                              style={{ left: `${beat.x * 85}%` }}
-                              onMouseDown={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                console.log('Mouse down on beat:', beat.id);
-                                setIsDragging(true);
-                                setDragInfo({ beatId: beat.id });
-                              }}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                              }}
-                            />
-                          ) : (
-                            <div
-                              className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 
-                                w-5 h-5 bg-gray-500 rounded-full pointer-events-none"
-                              style={{ left: `${beat.x * 85}%` }}
-                            />
-                          )}
-                          
-                          {/* 拍番号とパターン情報 */}
-                          <div
-                            className="absolute top-2 transform -translate-x-1/2 text-xs text-gray-400 pointer-events-none"
-                            style={{ left: `${beat.x * 85}%` }}
-                          >
-                            {beat.beatInLoop + 1}
-                          </div>
-                          
-                          {/* パターン名表示（最初の拍のみ） */}
-                          {beat.loopIndex === 0 && beat.beatInLoop === 0 && patterns[beat.patternIndex] && (
-                            <div
-                              className="absolute bottom-2 transform -translate-x-1/2 text-xs text-green-400 pointer-events-none"
-                              style={{ left: `${beat.x * 85}%` }}
-                            >
-                              {patterns[beat.patternIndex].name || `${patterns[beat.patternIndex].beats}/${patterns[beat.patternIndex].subdivision}`}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                    
-                    {/* 間隔の視覚化 */}
-                    {beatPositions.slice(0, -1).map((beat, index) => {
-                      const nextBeat = beatPositions[index + 1];
-                      const width = (nextBeat.x - beat.x) * 85;
-                      const opacity = Math.min(0.3, Math.max(0.05, width / 8));
-                      
-                      return (
-                        <div
-                          key={`interval-${beat.id}`}
-                          className="absolute top-1/4 h-1/2 bg-blue-400 pointer-events-none"
-                          style={{
-                            left: `${beat.x * 85}%`,
-                            width: `${width}%`,
-                            opacity: opacity
-                          }}
-                        />
-                      );
-                    })}
-                  </div>
+                <div className="text-sm text-gray-400 space-y-1">
+                  <p>• 青い点をドラッグして拍の間隔を調整（最初の拍以外すべて動かせます）</p>
+                  <p>• 間隔が狭い = 速い（accel）、広い = 遅い（rit）</p>
+                  <p>• 最後の拍を大きく右に動かすと効果的なritが表現できます</p>
+                  <p>• 緑の線は各パターンの1拍目</p>
                 </div>
               </div>
-              
-              <div className="text-sm text-gray-400 space-y-1">
-                <p>• 青い点をドラッグして拍の間隔を調整（最初の拍以外すべて動かせます）</p>
-                <p>• 間隔が狭い = 速い（accel）、広い = 遅い（rit）</p>
-                <p>• 最後の拍を大きく右に動かすと効果的なritが表現できます</p>
-                <p>• 緑の線は各パターンの1拍目</p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* プリセット保存 */}
-        <div className="bg-gray-800 p-6 rounded-lg mb-6">
-          <h2 className="text-xl font-semibold mb-4">プリセット保存</h2>
-          <div className="flex space-x-2">
-            <input
-              type="text"
-              value={presetName}
-              onChange={(e) => setPresetName(e.target.value)}
-              placeholder="プリセット名を入力"
-              className="flex-1 bg-gray-700 rounded px-3 py-2"
-            />
-            <button
-              onClick={savePreset}
-              className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded flex items-center"
-              disabled={isPlaying}
-            >
-              <Save size={16} className="mr-2" />
-              保存
-            </button>
+            )}
           </div>
-          {saveError && (
-            <p className="text-red-400 text-sm mt-2">{saveError}</p>
-          )}
+
+          {/* プリセット保存 */}
+          <div className="bg-gray-800 p-6 rounded-lg">
+            <div className="flex items-center mb-4">
+              <Save size={20} className="mr-2 text-green-400" />
+              <h2 className="text-xl font-semibold">プリセット保存</h2>
+              <span className="ml-2 text-xs bg-blue-600 px-2 py-1 rounded">パターン設定 + テンポカーブ</span>
+            </div>
+            <div className="flex space-x-2">
+              <input
+                type="text"
+                value={presetName}
+                onChange={(e) => setPresetName(e.target.value)}
+                placeholder="プリセット名を入力"
+                className="flex-1 bg-gray-700 rounded px-3 py-2"
+              />
+              <button
+                onClick={savePreset}
+                className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded flex items-center"
+                disabled={isPlaying}
+              >
+                <Save size={16} className="mr-2" />
+                保存
+              </button>
+            </div>
+            {saveError && (
+              <p className="text-red-400 text-sm mt-2">{saveError}</p>
+            )}
+          </div>
         </div>
 
         {/* プリセット一覧 */}
