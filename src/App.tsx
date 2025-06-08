@@ -93,7 +93,7 @@ const PolyrhythmMetronome = () => {
       audioContextRef.current = new (window.AudioContext || window.webkitAudioContext!)();
     }
     
-    // ローカルストレージからプリセット読み込み
+    // ローカルストレージからメトロノーム読み込み
     const saved = localStorage.getItem('metronomePresets');
     if (saved) {
       setSavedPresets(JSON.parse(saved));
@@ -346,7 +346,7 @@ const PolyrhythmMetronome = () => {
 
   const savePreset = () => {
     if (!presetName.trim()) {
-      setSaveError('プリセット名を入力してください');
+      setSaveError('メトロノーム名を入力してください');
       setTimeout(() => setSaveError(''), 3000);
       return;
     }
@@ -501,7 +501,7 @@ const PolyrhythmMetronome = () => {
     beatTimingsRef.current = []; // beatTimingsRefもクリア
   };
 
-  // プリセット共有機能
+  // メトロノーム共有機能
   const sharePresetFunction = (preset: Preset) => {
     const shareData = btoa(JSON.stringify(preset));
     setSharePreset(preset);
@@ -535,9 +535,9 @@ const PolyrhythmMetronome = () => {
         presetData = JSON.parse(importData.trim());
       }
 
-      // プリセットデータの検証
+      // メトロノームデータの検証
       if (!presetData.name || !Array.isArray(presetData.patterns)) {
-        throw new Error('無効なプリセット形式です');
+        throw new Error('無効なメトロノーム形式です');
       }
 
       // パターンの検証
@@ -548,7 +548,7 @@ const PolyrhythmMetronome = () => {
         }
       }
 
-      // 重複チェック（名前が同じプリセットがある場合は番号を付加）
+      // 重複チェック（名前が同じメトロノームがある場合は番号を付加）
       let importName = presetData.name;
       let counter = 1;
       while (savedPresets.some(p => p.name === importName)) {
@@ -595,7 +595,7 @@ const PolyrhythmMetronome = () => {
         {deleteConfirm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-gray-800 p-6 rounded-lg shadow-xl max-w-sm w-full mx-4">
-              <h3 className="text-lg font-semibold mb-2">プリセットの削除</h3>
+              <h3 className="text-lg font-semibold mb-2">メトロノームの削除</h3>
               <p className="text-gray-300 mb-4">
                 「{savedPresets.find(p => p.id === deleteConfirm)?.name}」を削除しますか？
               </p>
@@ -655,7 +655,7 @@ const PolyrhythmMetronome = () => {
         {showShareModal && sharePreset && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
-              <h3 className="text-lg font-semibold mb-4">プリセットの共有</h3>
+              <h3 className="text-lg font-semibold mb-4">メトロノームの共有</h3>
               <p className="text-gray-300 mb-2">「{sharePreset.name}」</p>
               <p className="text-sm text-gray-400 mb-4">
                 以下のデータをコピーして他の人に共有してください
@@ -693,9 +693,9 @@ const PolyrhythmMetronome = () => {
         {showImportModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
-              <h3 className="text-lg font-semibold mb-4">プリセットのインポート</h3>
+              <h3 className="text-lg font-semibold mb-4">メトロノームのインポート</h3>
               <p className="text-sm text-gray-400 mb-4">
-                共有されたプリセットデータを貼り付けてください
+                共有されたメトロノームデータを貼り付けてください
               </p>
               <textarea
                 value={importData}
@@ -703,7 +703,7 @@ const PolyrhythmMetronome = () => {
                   setImportData(e.target.value);
                   setImportError('');
                 }}
-                placeholder="プリセットデータを貼り付け..."
+                placeholder="メトロノームデータを貼り付け..."
                 className="w-full h-32 bg-gray-700 rounded px-3 py-2 text-sm resize-none mb-4"
               />
               {importError && (
@@ -774,7 +774,7 @@ const PolyrhythmMetronome = () => {
 
 
 
-        {/* プリセット設定エリア */}
+        {/* メトロノーム設定エリア */}
         <div className="bg-gray-700 p-1 rounded-lg mb-6">
           <div className="bg-gray-800 p-6 rounded-lg mb-4">
             <div className="flex justify-between items-center mb-4">
@@ -955,7 +955,7 @@ const PolyrhythmMetronome = () => {
 
           <div className="bg-gray-800 p-6 rounded-lg mb-4">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">テンポカーブ</h2>
+              <h2 className="text-xl font-semibold">テンポ調整</h2>
               <div className="flex items-center space-x-2">
                 {showTempoEditor && (
                   <button
@@ -1098,19 +1098,19 @@ const PolyrhythmMetronome = () => {
             )}
           </div>
 
-          {/* プリセット保存 */}
+          {/* メトロノーム保存 */}
           <div className="bg-gray-800 p-6 rounded-lg">
             <div className="flex items-center mb-4">
               <Save size={20} className="mr-2 text-green-400" />
-              <h2 className="text-xl font-semibold">プリセット保存</h2>
-              <span className="ml-2 text-xs bg-blue-600 px-2 py-1 rounded">パターン設定 + テンポカーブ</span>
+              <h2 className="text-xl font-semibold">保存</h2>
+              <span className="ml-2 text-xs bg-blue-600 px-2 py-1 rounded">パターン設定 + テンポ調整</span>
             </div>
             <div className="flex space-x-2">
               <input
                 type="text"
                 value={presetName}
                 onChange={(e) => setPresetName(e.target.value)}
-                placeholder="プリセット名を入力"
+                placeholder="メトロノーム名を入力"
                 className="flex-1 bg-gray-700 rounded px-3 py-2"
               />
               <button
@@ -1128,10 +1128,10 @@ const PolyrhythmMetronome = () => {
           </div>
         </div>
 
-        {/* プリセット一覧 */}
+        {/* メトロノーム一覧 */}
         <div className="bg-gray-800 p-6 rounded-lg">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">プリセット一覧</h2>
+            <h2 className="text-xl font-semibold">メトロノーム一覧</h2>
             <button
               onClick={() => setShowImportModal(true)}
               className="bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded flex items-center text-sm"
@@ -1143,7 +1143,7 @@ const PolyrhythmMetronome = () => {
           
           {savedPresets.length === 0 ? (
             <p className="text-gray-400 text-center py-8">
-              保存されたプリセットはありません
+              保存されたメトロノームはありません
             </p>
           ) : (
             <div className="space-y-2">
