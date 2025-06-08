@@ -345,18 +345,24 @@ const PolyrhythmMetronome = () => {
   };
 
   const updatePattern = (id: number, field: keyof Pattern, value: string | number) => {
+    // 入力中は生の値をそのまま設定（自由入力）
+    setPatterns(patterns.map(p => 
+      p.id === id ? { ...p, [field]: value } : p
+    ));
+  };
+
+  // フォーカス離脱時のバリデーション
+  const validatePattern = (id: number, field: keyof Pattern, value: string | number) => {
     let validatedValue = value;
     
-    // バリデーション
     if (field === 'beats') {
       const numValue = typeof value === 'string' ? parseInt(value) : value;
       validatedValue = Math.max(1, Math.min(32, isNaN(numValue) ? 1 : numValue));
     } else if (field === 'subdivision') {
       const numValue = typeof value === 'string' ? parseInt(value) : value;
-      // 一般的な音符の分割: 1, 2, 4, 8, 16, 32
       const validSubdivisions = [1, 2, 4, 8, 16, 32];
       if (isNaN(numValue) || !validSubdivisions.includes(numValue)) {
-        validatedValue = 4; // デフォルトを4分音符に
+        validatedValue = 4;
       } else {
         validatedValue = numValue;
       }
@@ -874,9 +880,9 @@ const PolyrhythmMetronome = () => {
               </div>
             </div>
             
-            <div className="text-sm text-gray-400 mb-4 space-y-1">
+            {/* <div className="text-sm text-gray-400 mb-4 space-y-1">
               <p>📝 <strong>入力制限</strong>: 拍子(1-32拍), BPM(40-300), ループ回数(1-20回), 分母(2,4,8,16,32分音符のみ)</p>
-            </div>
+            </div> */}
             
             <div className="space-y-4">
               {patterns.map((pattern, index) => (
@@ -908,7 +914,8 @@ const PolyrhythmMetronome = () => {
                           min="1"
                           max="32"
                           value={pattern.beats}
-                          onChange={(e) => updatePattern(pattern.id, 'beats', parseInt(e.target.value))}
+                          onChange={(e) => updatePattern(pattern.id, 'beats', e.target.value)}
+                          onBlur={(e) => validatePattern(pattern.id, 'beats', e.target.value)}
                           className="w-12 bg-gray-600 rounded px-1 py-1 text-center text-sm flex-shrink-0"
                           disabled={isPlaying}
                         />
@@ -950,7 +957,8 @@ const PolyrhythmMetronome = () => {
                           min="40"
                           max="300"
                           value={pattern.bpm}
-                          onChange={(e) => updatePattern(pattern.id, 'bpm', parseInt(e.target.value))}
+                          onChange={(e) => updatePattern(pattern.id, 'bpm', e.target.value)}
+                          onBlur={(e) => validatePattern(pattern.id, 'bpm', e.target.value)}
                           className="flex-1 bg-gray-600 rounded px-2 py-1 text-center text-sm"
                           disabled={isPlaying}
                         />
@@ -988,7 +996,8 @@ const PolyrhythmMetronome = () => {
                           min="1"
                           max="20"
                           value={pattern.loops}
-                          onChange={(e) => updatePattern(pattern.id, 'loops', parseInt(e.target.value))}
+                          onChange={(e) => updatePattern(pattern.id, 'loops', e.target.value)}
+                          onBlur={(e) => validatePattern(pattern.id, 'loops', e.target.value)}
                           className="flex-1 bg-gray-600 rounded px-2 py-1 text-center text-sm"
                           disabled={isPlaying}
                         />
@@ -1066,7 +1075,8 @@ const PolyrhythmMetronome = () => {
                     style={{ 
                       userSelect: 'none',
                       width: `${Math.max(100, beatPositions.length * 40 + 200)}px`,
-                      minWidth: '100%'
+                      minWidth: '100%',
+                      touchAction: 'pan-x'
                     }}
                   >
                     <div className="relative h-full w-full">
@@ -1094,7 +1104,10 @@ const PolyrhythmMetronome = () => {
                                   w-8 h-8 bg-blue-500 rounded-full cursor-ew-resize hover:bg-blue-400 
                                   transition-colors focus:outline-none focus:ring-4 focus:ring-blue-300
                                   ${isDragging && dragInfo?.beatId === beat.id ? 'ring-4 ring-blue-300 z-10' : ''}`}
-                                style={{ left: `${beat.x * 85}%` }}
+                                style={{ 
+                                  left: `${beat.x * 85}%`,
+                                  touchAction: 'none'
+                                }}
                                 onMouseDown={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
