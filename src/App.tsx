@@ -345,8 +345,31 @@ const PolyrhythmMetronome = () => {
   };
 
   const updatePattern = (id: number, field: keyof Pattern, value: string | number) => {
+    let validatedValue = value;
+    
+    // バリデーション
+    if (field === 'beats') {
+      const numValue = typeof value === 'string' ? parseInt(value) : value;
+      validatedValue = Math.max(1, Math.min(32, isNaN(numValue) ? 1 : numValue));
+    } else if (field === 'subdivision') {
+      const numValue = typeof value === 'string' ? parseInt(value) : value;
+      // 一般的な音符の分割: 1, 2, 4, 8, 16, 32
+      const validSubdivisions = [1, 2, 4, 8, 16, 32];
+      if (isNaN(numValue) || !validSubdivisions.includes(numValue)) {
+        validatedValue = 4; // デフォルトを4分音符に
+      } else {
+        validatedValue = numValue;
+      }
+    } else if (field === 'loops') {
+      const numValue = typeof value === 'string' ? parseInt(value) : value;
+      validatedValue = Math.max(1, Math.min(20, isNaN(numValue) ? 1 : numValue));
+    } else if (field === 'bpm') {
+      const numValue = typeof value === 'string' ? parseInt(value) : value;
+      validatedValue = Math.max(40, Math.min(300, isNaN(numValue) ? 120 : numValue));
+    }
+    
     setPatterns(patterns.map(p => 
-      p.id === id ? { ...p, [field]: value } : p
+      p.id === id ? { ...p, [field]: validatedValue } : p
     ));
   };
 
@@ -414,8 +437,14 @@ const PolyrhythmMetronome = () => {
     ]);
   };
 
-  // マウス移動時の処理
-  const handleMouseMove = (e: MouseEvent) => {
+  // ポインター位置取得の共通関数
+  const getPointerPosition = (e: MouseEvent | TouchEvent) => {
+    const clientX = 'touches' in e ? e.touches[0]?.clientX : e.clientX;
+    return clientX || 0;
+  };
+
+  // マウス・タッチ移動時の処理
+  const handleMove = (e: MouseEvent | TouchEvent) => {
     if (!isDragging || !dragInfo || !tempoEditorRef.current) return;
     
     // スクロールコンテナ（親要素）の情報を取得
@@ -426,8 +455,9 @@ const PolyrhythmMetronome = () => {
     const containerRect = scrollContainer.getBoundingClientRect();
     const scrollLeft = scrollContainer.scrollLeft;
     
-    // マウス位置をスクロールコンテナ内の座標に変換
-    const containerX = e.clientX - containerRect.left;
+    // ポインター位置をスクロールコンテナ内の座標に変換
+    const clientX = getPointerPosition(e);
+    const containerX = clientX - containerRect.left;
     const absoluteX = containerX + scrollLeft;
     
     // エディタの実際の幅
@@ -486,8 +516,8 @@ const PolyrhythmMetronome = () => {
     });
   };
 
-  // マウスアップ時の処理
-  const handleMouseUp = () => {
+  // マウス・タッチ終了時の処理
+  const handleEnd = () => {
     setIsDragging(false);
     setDragInfo(null);
   };
@@ -495,12 +525,19 @@ const PolyrhythmMetronome = () => {
   // グローバルイベントリスナー
   useEffect(() => {
     if (isDragging) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
+      // マウスイベント
+      window.addEventListener('mousemove', handleMove);
+      window.addEventListener('mouseup', handleEnd);
+      
+      // タッチイベント
+      window.addEventListener('touchmove', handleMove, { passive: false });
+      window.addEventListener('touchend', handleEnd);
       
       return () => {
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('mouseup', handleMouseUp);
+        window.removeEventListener('mousemove', handleMove);
+        window.removeEventListener('mouseup', handleEnd);
+        window.removeEventListener('touchmove', handleMove);
+        window.removeEventListener('touchend', handleEnd);
       };
     }
   }, [isDragging, dragInfo, beatPositions]);
@@ -837,6 +874,10 @@ const PolyrhythmMetronome = () => {
               </div>
             </div>
             
+            <div className="text-sm text-gray-400 mb-4 space-y-1">
+              <p>📝 <strong>入力制限</strong>: 拍子(1-32拍), BPM(40-300), ループ回数(1-20回), 分母(2,4,8,16,32分音符のみ)</p>
+            </div>
+            
             <div className="space-y-4">
               {patterns.map((pattern, index) => (
                 <div key={pattern.id} className="bg-gray-700 p-4 rounded">
@@ -945,16 +986,16 @@ const PolyrhythmMetronome = () => {
                         <input
                           type="number"
                           min="1"
-                          max="32"
+                          max="20"
                           value={pattern.loops}
                           onChange={(e) => updatePattern(pattern.id, 'loops', parseInt(e.target.value))}
                           className="flex-1 bg-gray-600 rounded px-2 py-1 text-center text-sm"
                           disabled={isPlaying}
                         />
                         <button
-                          onClick={() => updatePattern(pattern.id, 'loops', Math.min(32, pattern.loops + 1))}
+                          onClick={() => updatePattern(pattern.id, 'loops', Math.min(20, pattern.loops + 1))}
                           className="bg-gray-600 hover:bg-gray-500 px-1.5 py-1 rounded disabled:opacity-50 flex-shrink-0"
-                          disabled={isPlaying || pattern.loops >= 32}
+                          disabled={isPlaying || pattern.loops >= 20}
                         >
                           <ChevronRight size={12} />
                         </button>
@@ -962,7 +1003,7 @@ const PolyrhythmMetronome = () => {
                       <input
                         type="range"
                         min="1"
-                        max="32"
+                        max="20"
                         value={pattern.loops}
                         onChange={(e) => updatePattern(pattern.id, 'loops', parseInt(e.target.value))}
                         className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer slider mt-1"
@@ -1058,6 +1099,13 @@ const PolyrhythmMetronome = () => {
                                   e.preventDefault();
                                   e.stopPropagation();
                                   console.log('Mouse down on beat:', beat.id);
+                                  setIsDragging(true);
+                                  setDragInfo({ beatId: beat.id });
+                                }}
+                                onTouchStart={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  console.log('Touch start on beat:', beat.id);
                                   setIsDragging(true);
                                   setDragInfo({ beatId: beat.id });
                                 }}
