@@ -5,8 +5,9 @@ const urlsToCache = [
   '/assets/index.css',
   '/assets/index.js',
   '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png'
+  '/icon-192.svg',
+  '/icon-512.svg',
+  '/favicon.ico'
 ];
 
 // Service Workerのインストール
@@ -74,8 +75,8 @@ function doBackgroundSync() {
 self.addEventListener('push', event => {
   const options = {
     body: event.data ? event.data.text() : '新しい通知があります',
-    icon: '/icon-192.png',
-    badge: '/icon-72.png',
+    icon: '/icon-192.svg',
+    badge: '/icon-72.svg',
     vibrate: [100, 50, 100],
     data: {
       dateOfArrival: Date.now(),
