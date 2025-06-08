@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>メトロノームアイコン生成</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        canvas {
+            border: 2px solid #ddd;
+            margin: 10px;
+            border-radius: 8px;
+        }
+        .icon-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .icon-item {
+            text-align: center;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        .download-all {
+            background: #10b981;
+        }
+        .download-all:hover {
+            background: #059669;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 メトロノームアイコン生成ツール</h1>
+        <p>PWAとGoogle Playストア用のアイコンを生成します</p>
+        
+        <button onclick="generateAllIcons()" class="download-all">全てのアイコンを生成</button>
+        
+        <div class="icon-grid" id="iconGrid">
+            <!-- アイコンがここに生成されます -->
+        </div>
+    </div>
+
+    <script>
+        const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+        
+        function drawMetronomeIcon(canvas, size) {
+            const ctx = canvas.getContext('2d');
+            const center = size / 2;
+            
+            // キャンバスをクリア
+            ctx.clearRect(0, 0, size, size);
+            
+            // 背景（円形）
+            ctx.fillStyle = '#3b82f6';
+            ctx.beginPath();
+            ctx.arc(center, center, center - 10, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // メトロノームの基台
+            ctx.fillStyle = '#1f2937';
+            const baseWidth = size * 0.6;
+            const baseHeight = size * 0.15;
+            ctx.fillRect(center - baseWidth/2, size * 0.8, baseWidth, baseHeight);
+            
+            // メトロノームの本体（三角形）
+            ctx.fillStyle = '#374151';
+            ctx.beginPath();
+            ctx.moveTo(center, size * 0.2);
+            ctx.lineTo(center - size * 0.25, size * 0.8);
+            ctx.lineTo(center + size * 0.25, size * 0.8);
+            ctx.closePath();
+            ctx.fill();
+            
+            // 振り子
+            ctx.strokeStyle = '#fbbf24';
+            ctx.lineWidth = size * 0.02;
+            ctx.beginPath();
+            ctx.moveTo(center, size * 0.25);
+            ctx.lineTo(center + size * 0.15, size * 0.65);
+            ctx.stroke();
+            
+            // 振り子の重り
+            ctx.fillStyle = '#f59e0b';
+            ctx.beginPath();
+            ctx.arc(center + size * 0.15, size * 0.65, size * 0.05, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // 拍子記号
+            ctx.fillStyle = '#ffffff';
+            ctx.font = `bold ${size * 0.15}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.fillText('♪', center - size * 0.1, size * 0.5);
+            
+            // リズムの波線
+            ctx.strokeStyle = '#60a5fa';
+            ctx.lineWidth = size * 0.01;
+            for (let i = 0; i < 3; i++) {
+                ctx.beginPath();
+                const y = size * 0.3 + i * size * 0.08;
+                ctx.moveTo(size * 0.15, y);
+                ctx.quadraticCurveTo(size * 0.25, y - size * 0.02, size * 0.35, y);
+                ctx.quadraticCurveTo(size * 0.45, y + size * 0.02, size * 0.55, y);
+                ctx.stroke();
+            }
+        }
+        
+        function generateIcon(size) {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            drawMetronomeIcon(canvas, size);
+            return canvas;
+        }
+        
+        function downloadCanvas(canvas, filename) {
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+        
+        function generateAllIcons() {
+            const iconGrid = document.getElementById('iconGrid');
+            iconGrid.innerHTML = '';
+            
+            sizes.forEach(size => {
+                const canvas = generateIcon(size);
+                
+                const iconItem = document.createElement('div');
+                iconItem.className = 'icon-item';
+                
+                const title = document.createElement('h3');
+                title.textContent = `${size}x${size}`;
+                
+                const downloadBtn = document.createElement('button');
+                downloadBtn.textContent = 'ダウンロード';
+                downloadBtn.onclick = () => downloadCanvas(canvas, `icon-${size}.png`);
+                
+                iconItem.appendChild(title);
+                iconItem.appendChild(canvas);
+                iconItem.appendChild(downloadBtn);
+                
+                iconGrid.appendChild(iconItem);
+            });
+            
+            // faviconも生成
+            const faviconCanvas = generateIcon(32);
+            const faviconItem = document.createElement('div');
+            faviconItem.className = 'icon-item';
+            
+            const faviconTitle = document.createElement('h3');
+            faviconTitle.textContent = 'favicon (32x32)';
+            
+            const faviconBtn = document.createElement('button');
+            faviconBtn.textContent = 'favicon.ico ダウンロード';
+            faviconBtn.onclick = () => downloadCanvas(faviconCanvas, 'favicon.ico');
+            
+            faviconItem.appendChild(faviconTitle);
+            faviconItem.appendChild(faviconCanvas);
+            faviconItem.appendChild(faviconBtn);
+            
+            iconGrid.appendChild(faviconItem);
+        }
+        
+        // ページ読み込み時に自動生成
+        window.addEventListener('load', generateAllIcons);
+    </script>
+</body>
+</html> 

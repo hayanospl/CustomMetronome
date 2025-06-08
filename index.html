@@ -2,11 +2,20 @@
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="高機能なポリリズム対応メトロノーム。複数パターンの組み合わせ、テンポカーブ、プリセット機能を搭載。音楽練習に最適なWebアプリ。" />
     <meta name="keywords" content="メトロノーム,ポリリズム,音楽,練習,テンポ,リズム,楽器" />
     <meta name="author" content="Polyrhythm Metronome" />
+    
+    <!-- PWA設定 -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#3b82f6" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="メトロノーム" />
     
     <!-- Open Graph -->
     <meta property="og:title" content="ポリリズムメトロノーム - 高機能Web メトロノーム" />
@@ -23,5 +32,20 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- PWA Service Worker登録 -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('SW registered: ', registration);
+            })
+            .catch((registrationError) => {
+              console.log('SW registration failed: ', registrationError);
+            });
+        });
+      }
+    </script>
   </body>
 </html>

@@ -1,0 +1,40 @@
+{
+  "packageId": "com.polyrhythmmetronome.app",
+  "host": "cutommetronome-ovreb9h5n-hayanospls-projects.vercel.app",
+  "name": "カスタムメトロノーム - ポリリズム対応",
+  "launcherName": "メトロノーム",
+  "display": "standalone",
+  "orientation": "portrait",
+  "themeColor": "#3b82f6",
+  "navigationColor": "#ffffff",
+  "backgroundColor": "#ffffff",
+  "enableNotifications": true,
+  "startUrl": "/",
+  "iconUrl": "https://cutommetronome-ovreb9h5n-hayanospls-projects.vercel.app/icon-512.png",
+  "maskableIconUrl": "https://cutommetronome-ovreb9h5n-hayanospls-projects.vercel.app/icon-512.png",
+  "monochromeIconUrl": "https://cutommetronome-ovreb9h5n-hayanospls-projects.vercel.app/icon-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "android"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [
+    {
+      "name": "クイックスタート",
+      "short_name": "開始",
+      "url": "/?action=start",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "generator": {
+    "name": "@bubblewrap/cli",
+    "version": "1.19.6"
+  }
+} 
