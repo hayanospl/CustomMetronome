@@ -1234,23 +1234,26 @@ const PolyrhythmMetronome = () => {
                   <div className="flex space-x-2">
                     <button
                       onClick={() => loadPreset(preset)}
-                      className="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-sm"
+                      className="bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded text-sm min-w-[60px]"
                       disabled={isPlaying}
                     >
                       読込
                     </button>
                     <button
                       onClick={() => sharePresetFunction(preset)}
-                      className="bg-purple-600 hover:bg-purple-700 p-1 rounded"
+                      className="bg-purple-600 hover:bg-purple-700 px-3 py-2 rounded text-sm flex items-center"
                       title="共有"
                     >
                       <Share2 size={16} />
+                      <span className="ml-1 hidden sm:inline">共有</span>
                     </button>
                     <button
                       onClick={() => setDeleteConfirm(preset.id)}
-                      className="bg-red-600 hover:bg-red-700 p-1 rounded"
+                      className="bg-red-600 hover:bg-red-700 px-3 py-2 rounded text-sm flex items-center"
+                      title="削除"
                     >
                       <Trash2 size={16} />
+                      <span className="ml-1 hidden sm:inline">削除</span>
                     </button>
                   </div>
                 </div>
