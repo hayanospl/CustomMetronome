@@ -2,7 +2,7 @@
   "name": "カスタムメトロノーム - ポリリズム対応",
   "short_name": "メトロノーム",
   "description": "高度なポリリズム機能とテンポカーブ編集が可能なメトロノームアプリ",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "id": "/",
   "start_url": "/",
   "display": "standalone",
