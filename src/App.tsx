@@ -547,7 +547,8 @@ const PolyrhythmMetronome = () => {
 
   // メトロノーム共有機能
   const sharePresetFunction = (preset: Preset) => {
-    const shareData = btoa(JSON.stringify(preset));
+    // 日本語文字に対応したエンコーディング
+    const shareData = encodeURIComponent(JSON.stringify(preset));
     setSharePreset(preset);
     setShareData(shareData);
     setShowShareModal(true);
@@ -570,13 +571,19 @@ const PolyrhythmMetronome = () => {
     }
 
     try {
-      // Base64デコードを試行
+      // デコードを試行（複数形式に対応）
       let presetData;
       try {
-        presetData = JSON.parse(atob(importData.trim()));
+        // 新形式（encodeURIComponent）をデコード
+        presetData = JSON.parse(decodeURIComponent(importData.trim()));
       } catch {
-        // Base64でない場合は直接JSONとしてパース
-        presetData = JSON.parse(importData.trim());
+        try {
+          // 旧形式（Base64）をデコード
+          presetData = JSON.parse(atob(importData.trim()));
+        } catch {
+          // エンコードされていない場合は直接JSONとしてパース
+          presetData = JSON.parse(importData.trim());
+        }
       }
 
       // メトロノームデータの検証
