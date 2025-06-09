@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>メトロノームアイコン生成器</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f0f0f0; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; }
+        button { background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:hover { background: #2563eb; }
+        .preview { margin: 20px 0; display: flex; flex-wrap: wrap; gap: 20px; }
+        .icon-preview { text-align: center; }
+        .icon-preview canvas { border: 1px solid #ddd; }
+        .download-section { margin-top: 20px; }
+        .size-info { font-size: 12px; color: #666; margin-top: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>メトロノームアイコン生成器</h1>
+        <p>貼っていただいた画像デザインのPNGアイコンを生成します</p>
+        
+        <button onclick="generateAllIcons()">全サイズのアイコンを生成</button>
+        
+        <div class="preview" id="preview"></div>
+        
+        <div class="download-section" id="downloads"></div>
+    </div>
+
+    <script>
+        const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+        
+        function createIcon(size) {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            
+            // Background
+            const bgGradient = ctx.createLinearGradient(0, 0, size, size);
+            bgGradient.addColorStop(0, '#1a2332');
+            ctx.fillStyle = bgGradient;
+            ctx.roundRect(0, 0, size, size, size * 0.125);
+            ctx.fill();
+            
+            // Metronome gradient
+            const metronomeGradient = ctx.createLinearGradient(0, 0, size, size);
+            metronomeGradient.addColorStop(0, '#00bcd4');
+            metronomeGradient.addColorStop(0.5, '#2196f3');
+            metronomeGradient.addColorStop(1, '#9c27b0');
+            
+            // Gear gradient
+            const gearGradient = ctx.createLinearGradient(0, 0, size, size);
+            gearGradient.addColorStop(0, '#673ab7');
+            gearGradient.addColorStop(1, '#9c27b0');
+            
+            const scale = size / 192; // 192をベースサイズとする
+            
+            // Metronome base
+            ctx.fillStyle = metronomeGradient;
+            ctx.globalAlpha = 0.8;
+            ctx.fillRect(50 * scale, 140 * scale, 92 * scale, 20 * scale);
+            ctx.globalAlpha = 1;
+            
+            // Metronome arm
+            ctx.fillStyle = metronomeGradient;
+            ctx.fillRect(94 * scale, 50 * scale, 4 * scale, 90 * scale);
+            
+            // Weight on arm
+            ctx.fillStyle = metronomeGradient;
+            ctx.beginPath();
+            ctx.ellipse(97 * scale, 65 * scale, 8 * scale, 12 * scale, 0, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Metronome triangle body
+            ctx.strokeStyle = metronomeGradient;
+            ctx.globalAlpha = 0.7;
+            ctx.lineWidth = 3 * scale;
+            ctx.beginPath();
+            ctx.moveTo(75 * scale, 140 * scale);
+            ctx.lineTo(96 * scale, 45 * scale);
+            ctx.lineTo(117 * scale, 140 * scale);
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+            
+            // Curved tempo arrow
+            ctx.strokeStyle = metronomeGradient;
+            ctx.lineWidth = 4 * scale;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(96 * scale, 45 * scale);
+            ctx.quadraticCurveTo(120 * scale, 35 * scale, 140 * scale, 55 * scale);
+            ctx.quadraticCurveTo(145 * scale, 65 * scale, 135 * scale, 75 * scale);
+            ctx.stroke();
+            
+            // Arrow head
+            ctx.fillStyle = metronomeGradient;
+            ctx.beginPath();
+            ctx.moveTo(135 * scale, 75 * scale);
+            ctx.lineTo(130 * scale, 70 * scale);
+            ctx.lineTo(140 * scale, 68 * scale);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Gear
+            const gearX = 130 * scale;
+            const gearY = 120 * scale;
+            const gearRadius = 22 * scale;
+            
+            // Main gear circle
+            ctx.fillStyle = gearGradient;
+            ctx.beginPath();
+            ctx.arc(gearX, gearY, gearRadius, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Inner circle
+            ctx.fillStyle = '#1a2332';
+            ctx.beginPath();
+            ctx.arc(gearX, gearY, 12 * scale, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Center circle
+            ctx.fillStyle = gearGradient;
+            ctx.beginPath();
+            ctx.arc(gearX, gearY, 6 * scale, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Gear teeth
+            ctx.fillStyle = gearGradient;
+            const teeth = [
+                {x: -2 * scale, y: -26 * scale, w: 4 * scale, h: 8 * scale},
+                {x: -2 * scale, y: 18 * scale, w: 4 * scale, h: 8 * scale},
+                {x: 18 * scale, y: -2 * scale, w: 8 * scale, h: 4 * scale},
+                {x: -26 * scale, y: -2 * scale, w: 8 * scale, h: 4 * scale}
+            ];
+            
+            teeth.forEach(tooth => {
+                ctx.fillRect(gearX + tooth.x, gearY + tooth.y, tooth.w, tooth.h);
+            });
+            
+            // Text
+            ctx.fillStyle = gearGradient;
+            ctx.font = `bold ${14 * scale}px Arial, sans-serif`;
+            ctx.fillText('rit.', 145 * scale, 85 * scale);
+            ctx.fillText('accel.', 140 * scale, 100 * scale);
+            
+            return canvas;
+        }
+        
+        function generateAllIcons() {
+            const preview = document.getElementById('preview');
+            const downloads = document.getElementById('downloads');
+            preview.innerHTML = '';
+            downloads.innerHTML = '';
+            
+            sizes.forEach(size => {
+                const canvas = createIcon(size);
+                
+                // Preview
+                const previewDiv = document.createElement('div');
+                previewDiv.className = 'icon-preview';
+                previewDiv.innerHTML = `
+                    <canvas width="${Math.min(size, 128)}" height="${Math.min(size, 128)}"></canvas>
+                    <div class="size-info">${size}x${size}px</div>
+                `;
+                
+                const previewCanvas = previewDiv.querySelector('canvas');
+                const previewCtx = previewCanvas.getContext('2d');
+                const previewSize = Math.min(size, 128);
+                previewCtx.drawImage(canvas, 0, 0, size, size, 0, 0, previewSize, previewSize);
+                
+                preview.appendChild(previewDiv);
+                
+                // Download link
+                canvas.toBlob(blob => {
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `icon-${size}x${size}.png`;
+                    link.textContent = `icon-${size}x${size}.png をダウンロード`;
+                    link.style.display = 'block';
+                    downloads.appendChild(link);
+                }, 'image/png');
+            });
+        }
+        
+        // Canvas roundRect polyfill
+        if (!CanvasRenderingContext2D.prototype.roundRect) {
+            CanvasRenderingContext2D.prototype.roundRect = function(x, y, width, height, radius) {
+                this.beginPath();
+                this.moveTo(x + radius, y);
+                this.lineTo(x + width - radius, y);
+                this.quadraticCurveTo(x + width, y, x + width, y + radius);
+                this.lineTo(x + width, y + height - radius);
+                this.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+                this.lineTo(x + radius, y + height);
+                this.quadraticCurveTo(x, y + height, x, y + height - radius);
+                this.lineTo(x, y + radius);
+                this.quadraticCurveTo(x, y, x + radius, y);
+                this.closePath();
+                return this;
+            };
+        }
+    </script>
+</body>
+</html> 

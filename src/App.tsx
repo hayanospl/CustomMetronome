@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Play, Pause, Plus, Trash2, Save, RotateCcw, TrendingUp, ChevronLeft, ChevronRight, Share2, Upload, Copy, Check, Download } from 'lucide-react';
+import { Play, Pause, Plus, Trash2, Save, RotateCcw, TrendingUp, ChevronLeft, ChevronRight, Share2, Upload, Copy, Check } from 'lucide-react';
 
 // 型定義
 interface Pattern {
@@ -71,8 +71,7 @@ const PolyrhythmMetronome = () => {
   const [importData, setImportData] = useState('');
   const [importError, setImportError] = useState('');
   const [copySuccess, setCopySuccess] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+
   
   const audioContextRef = useRef<AudioContext | null>(null);
   const nextNoteTimeRef = useRef(0);
@@ -101,20 +100,10 @@ const PolyrhythmMetronome = () => {
       setSavedPresets(JSON.parse(saved));
     }
     
-    // PWAインストールイベントの監視
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-      setShowInstallPrompt(true);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    
     return () => {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
       }
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
   }, []);
 
@@ -641,18 +630,7 @@ const PolyrhythmMetronome = () => {
     }
   };
 
-  const handleInstallApp = async () => {
-    if (!deferredPrompt) return;
 
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    
-    if (outcome === 'accepted') {
-      setShowInstallPrompt(false);
-    }
-    
-    setDeferredPrompt(null);
-  };
 
 
 
@@ -661,15 +639,6 @@ const PolyrhythmMetronome = () => {
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold">カスタムメトロノーム</h1>
-          {showInstallPrompt && (
-            <button
-              onClick={handleInstallApp}
-              className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded flex items-center"
-            >
-              <Download size={16} className="mr-2" />
-              アプリをインストール
-            </button>
-          )}
         </div>
         
         {/* 削除確認モーダル */}
