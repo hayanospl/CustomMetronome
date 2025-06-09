@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Play, Pause, Plus, Trash2, Save, RotateCcw, TrendingUp, ChevronLeft, ChevronRight, Share2, Upload, Copy, Check } from 'lucide-react';
+import LZString from 'lz-string';
 
 // 型定義
 interface Pattern {
@@ -547,10 +548,34 @@ const PolyrhythmMetronome = () => {
 
   // メトロノーム共有機能
   const sharePresetFunction = (preset: Preset) => {
-    // 日本語文字に対応したエンコーディング
-    const shareData = encodeURIComponent(JSON.stringify(preset));
+    // データ構造を最適化（不要なフィールドを削除、キー名を短縮）
+    const optimizedData = {
+      n: preset.name, // name
+      p: preset.patterns.map(pattern => ({
+        n: pattern.name || '', // name
+        b: pattern.beats, // beats
+        s: pattern.subdivision, // subdivision
+        l: pattern.loops, // loops
+        bpm: pattern.bpm
+      })),
+      tc: preset.tempoCurve ? {
+        e: preset.tempoCurve.enabled, // enabled
+        ci: preset.tempoCurve.customIntervals, // customIntervals
+        bp: preset.tempoCurve.beatPositions.map(bp => ({
+          i: bp.id,
+          x: bp.x,
+          pi: bp.patternIndex,
+          li: bp.loopIndex,
+          bl: bp.beatInLoop,
+          f: bp.isFirstBeat
+        }))
+      } : undefined
+    };
+
+    // LZ-string圧縮 + Base64エンコード
+    const compressed = LZString.compressToBase64(JSON.stringify(optimizedData));
     setSharePreset(preset);
-    setShareData(shareData);
+    setShareData(compressed);
     setShowShareModal(true);
   };
 
@@ -573,16 +598,51 @@ const PolyrhythmMetronome = () => {
     try {
       // デコードを試行（複数形式に対応）
       let presetData;
+      let rawData;
+      
       try {
-        // 新形式（encodeURIComponent）をデコード
-        presetData = JSON.parse(decodeURIComponent(importData.trim()));
+        // 新形式（LZ-string圧縮）を解凍
+        const decompressed = LZString.decompressFromBase64(importData.trim());
+        if (decompressed) {
+          rawData = JSON.parse(decompressed);
+          // 最適化データを元の形式に復元
+          presetData = {
+            name: rawData.n,
+            patterns: rawData.p.map((p: any) => ({
+              name: p.n,
+              beats: p.b,
+              subdivision: p.s,
+              loops: p.l,
+              bpm: p.bpm
+            })),
+            tempoCurve: rawData.tc ? {
+              enabled: rawData.tc.e,
+              customIntervals: rawData.tc.ci,
+              beatPositions: rawData.tc.bp.map((bp: any) => ({
+                id: bp.i,
+                x: bp.x,
+                patternIndex: bp.pi,
+                loopIndex: bp.li,
+                beatInLoop: bp.bl,
+                isFirstBeat: bp.f
+              }))
+            } : undefined
+          };
+        } else {
+          throw new Error('LZ-string decompression failed');
+        }
       } catch {
         try {
-          // 旧形式（Base64）をデコード
-          presetData = JSON.parse(atob(importData.trim()));
+          // 旧形式（encodeURIComponent）をデコード
+          presetData = JSON.parse(decodeURIComponent(importData.trim()));
         } catch {
-          // エンコードされていない場合は直接JSONとしてパース
-          presetData = JSON.parse(importData.trim());
+          try {
+            // 更に古い形式（Base64）をデコード
+            presetData = JSON.parse(atob(importData.trim()));
+          } catch {
+            // エンコードされていない場合は直接JSONとしてパース
+            presetData = JSON.parse(importData.trim());
+          }
         }
       }
 
